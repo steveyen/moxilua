@@ -30,7 +30,11 @@ local a2x = {
         return true
       end
 
-      apo.send(downstream.addr, "fwd", apo.self_address(),
+      local self_addr = apo.self_address()
+
+      apo.watch(downstream.addr, self_addr, false)
+
+      apo.send(downstream.addr, "fwd", self_addr,
                response, memcached_client_ascii[cmd], args)
 
       return true
@@ -71,7 +75,11 @@ local a2x = {
         return true
       end
 
-      apo.send(downstream.addr, "fwd", apo.self_address(),
+      local self_addr = apo.self_address()
+
+      apo.watch(downstream.addr, self_addr, false)
+
+      apo.send(downstream.addr, "fwd", self_addr,
                response, memcached_client_binary[cmd], args)
 
       return true
@@ -105,7 +113,11 @@ local function forward_update(pool, skt, cmd, arr)
                                   expire = expire,
                                   data   = string.sub(data, 1, -3)
                                 }) then
-          return apo.recv()
+          local ok, err = apo.recv()
+          apo.unwatch(downstream.addr)
+          if ok then
+            return ok, err
+          end
         end
       end
     end
@@ -132,7 +144,11 @@ local function forward_arith(pool, skt, cmd, arr)
                                 key    = key,
                                 amount = amount
                               }) then
-          return apo.recv()
+        local ok, err = apo.recv()
+        apo.unwatch(downstream.addr)
+        if ok then
+          return ok, err
+        end
       end
     end
   end
@@ -162,6 +178,10 @@ memcached_server_ascii_proxy = {
         end
       end
 
+      for downstream, _ in pairs(groups) do
+        apo.unwatch(downstream.addr) -- TODO: Mismatch window with unwatch.
+      end
+
       return sock_send(skt, "END\r\n")
     end,
 
@@ -182,7 +202,11 @@ memcached_server_ascii_proxy = {
            downstream.addr then
           if a2x[downstream.kind](downstream, skt,
                                   "delete", { key = key }) then
-            return apo.recv()
+            local ok, err = apo.recv()
+            apo.unwatch(downstream.addr)
+            if ok then
+              return ok, err
+            end
           end
         end
       end
@@ -208,6 +232,11 @@ memcached_server_ascii_proxy = {
           oks = oks + 1
         end
       end
+
+      pool.each(
+        function(downstream)
+          apo.unwatch(downstream.addr) -- TODO: Mismatch window with unwatch.
+        end)
 
       return sock_send(skt, "OK\r\n")
     end,
