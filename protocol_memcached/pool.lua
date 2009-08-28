@@ -78,6 +78,13 @@ function memcached_pool(locations)
         return find_downstream(1)
       end,
 
+    -- Will not return duplicate downstreams.
+    --
+    choose_many =
+      function(key, num_downstreams)
+        return { find_downstream(1) }
+      end,
+
     each =
       function(each_func)
         for k, location in pairs(locations) do

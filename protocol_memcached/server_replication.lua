@@ -15,8 +15,9 @@ local SUCCESS = mpb.response_stats.SUCCESS
 -- useful to have lots of replicas, but not have to wait
 -- for acknowledgements from all of them.
 --
-local function create_replicator(success_msg, min_replicas)
-  min_replicas = min_replicas or 0
+local function create_replicator(success_msg, min_replicas, preferred_replicas)
+  min_replicas       = min_replicas       or 0
+  preferred_replicas = preferred_replicas or 1
 
   return function(pools, skt, cmd, msg)
     local first_response_head = nil
@@ -47,13 +48,16 @@ local function create_replicator(success_msg, min_replicas)
       local pool = pools[i]
 
       if msg.key then
-        local downstream = pool.choose(msg.key)
-        if downstream and
-           downstream.addr then
-          if msa.proxy_a2x[downstream.kind](downstream, skt,
-                                            cmd, msg,
-                                            first_response_filter) then
-            n = n + 1
+        local downstreams = pool.choose_many(msg.key, preferred_replicas)
+        for j = 1, #downstreams do
+          local downstream = downstreams[j]
+          if downstream and
+             downstream.addr then
+            if msa.proxy_a2x[downstream.kind](downstream, skt,
+                                              cmd, msg,
+                                              first_response_filter) then
+              n = n + 1
+            end
           end
         end
       else
