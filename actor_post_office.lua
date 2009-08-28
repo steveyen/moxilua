@@ -109,6 +109,8 @@ end
 ----------------------------------------
 
 local function resume(coro, ...)
+  -- TODO: Do we need xpcall around resume()?
+  --
   if coro and coroutine.status(coro) ~= 'dead' then
     local ok = coroutine.resume(coro, ...)
     if not ok then
@@ -123,10 +125,33 @@ end
 
 ----------------------------------------
 
+-- Lowest-level asynchronous send of a message.
+--
+local function send_msg(dest_addr, dest_msg, track_addr, track_msg)
+  table.insert(envelopes, { dest_addr  = dest_addr,
+                            dest_msg   = dest_msg,
+                            track_addr = track_addr,
+                            track_msg  = track_msg})
+end
+
+----------------------------------------
+
 local function deliver_envelope(envelope)
   -- Must be invoked on main thread.
   if envelope then
-    return resume(map_addr_to_coro[envelope.dest_addr], unpack(envelope.msg))
+    local coro = map_addr_to_coro[envelope.dest_addr]
+    if coro then
+      resume(coro, unpack(envelope.dest_msg))
+    else
+      -- The destination coro is gone, probably finished already,
+      -- so send the tracking address a notification message.
+      --
+      if envelope.track_addr then
+        send_msg(envelope.track_addr, envelope.track_msg)
+      end
+    end
+
+    return true
   end
 
   return false
@@ -159,12 +184,6 @@ end
 
 ----------------------------------------
 
--- Asynchronous send of a msg table.
---
-local function send_msg(dest_addr, msg)
-  table.insert(envelopes, { dest_addr = dest_addr, msg = msg })
-end
-
 -- Asynchronous send of variable args as a message.
 --
 local function send_later(dest_addr, ...)
@@ -179,6 +198,20 @@ end
 local function send(dest_addr, ...)
   if dest_addr then
     send_msg(dest_addr, arg)
+  end
+
+  loop_until_empty()
+end
+
+-- Asynchronous send of variable args as a message, similar to send(),
+-- except a tracking address and message can be supplied.  The
+-- tracking address will be notified with the track_msg if there are
+-- problems sending the message to the dest_addr, such as if the
+-- destination address does not represent a live actor.
+--
+local function send_track(dest_addr, track_addr, track_msg, ...)
+  if dest_addr then
+    send_msg(dest_addr, arg, track_addr, track_msg)
   end
 
   loop_until_empty()
@@ -200,6 +233,8 @@ local function spawn_with(spawner, f, ...)
   local child_arg = arg
   local child_fun =
     function()
+      -- TODO: Do we need xpcall around f()?
+      --
       f(child_addr, unpack(child_arg))
 
       local watchers = map_addr_to_watchers[child_addr]
@@ -267,6 +302,7 @@ return {
   recv       = recv,
   send       = send,
   send_later = send_later,
+  send_track = send_track,
   step       = step,
   spawn      = spawn,
   spawn_with = spawn_with,
