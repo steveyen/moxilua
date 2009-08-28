@@ -11,8 +11,8 @@ local SUCCESS = mpb.response_stats.SUCCESS
 -- The created function won't return until it receives responses from
 -- all the downstreams that it made requests to, but the function will
 -- sock_send() an early success_msg back upstream if there are at
--- least cmd_policy.min_replica number of downstream successes.  If
--- the input cmd_policy.min_replica is <= 0 or nil then all contacted
+-- least cmd_policy.min_writes number of downstream successes.  If
+-- the input cmd_policy.min_writes is <= 0 or nil then all contacted
 -- downstreams must succeed before the success_msg is sent back
 -- upstream.  Otherwise an ERROR is sent upstream.
 --
@@ -49,7 +49,7 @@ local function create_replicator(success_msg, cmd_policy)
 
       if msg.key then
         local downstreams = pool.choose_many(msg.key,
-                                             cmd_policy.num_replica)
+                                             cmd_policy.num_replicas)
         for j = 1, #downstreams do
           local downstream = downstreams[j]
           if downstream and
@@ -75,10 +75,10 @@ local function create_replicator(success_msg, cmd_policy)
     -- Wait for replies, but opportunistically send an
     -- early success_msg as soon as we can.
     --
-    local min_replica = n
-    if cmd_policy.min_replica and
-       cmd_policy.min_replica > 0 then
-      min_replica = cmd_policy.min_replica
+    local min_writes = n
+    if cmd_policy.min_writes and
+       cmd_policy.min_writes > 0 then
+      min_writes = cmd_policy.min_writes
     end
 
     local sent = nil
@@ -90,7 +90,7 @@ local function create_replicator(success_msg, cmd_policy)
         oks = oks + 1
       end
 
-      if (not sent) and (oks >= min_replica) then
+      if (not sent) and (oks >= min_writes) then
         sent, err = sock_send(skt, success_msg or first_response())
       end
     end
@@ -99,7 +99,7 @@ local function create_replicator(success_msg, cmd_policy)
       return sent, err
     end
 
-    if oks >= min_replica then
+    if oks >= min_writes then
       return sock_send(skt, success_msg or first_response())
     end
 
@@ -110,7 +110,7 @@ end
 ------------------------------------------------------
 
 -- Creates a function that replicates a key-based update
--- request across all pools, with at least min_replica
+-- request across all pools, with at least cmd_policy.min_writes
 -- required before sending a success_msg response.
 --
 local function create_update_replicator(success_msg, cmd_policy)
