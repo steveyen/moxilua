@@ -144,9 +144,11 @@ local function finish(child_addr)
   -- Notify watchers.
   --
   if watchers then
-    for watcher_addr, watcher_arg in pairs(watchers) do
+    for watcher_addr, watcher_args in pairs(watchers) do
       if watcher_addr then
-        send(watcher_addr, watcher_arg, child_addr)
+        for i = 1, #watcher_args do
+          send_msg(watcher_addr, watcher_args[i])
+        end
       end
     end
   end
@@ -281,6 +283,15 @@ end
 
 ----------------------------------------
 
+-- Registers a watcher actor to a target actor address.  A single
+-- watcher actor can register multiple times on a target actor with
+-- different watcher_arg's.  When then target actor dies, the watcher
+-- will be notified multiple times via a sent message, once for each
+-- call to the original watch().
+--
+-- A call to the related unwatch() function clears all the
+-- registrations for a watcher actor on a target actor.
+--
 local function watch(target_addr, watcher_addr, watcher_arg)
   watcher_addr = watcher_addr or self_address()
 
@@ -290,10 +301,20 @@ local function watch(target_addr, watcher_addr, watcher_arg)
       watchers = {}
       map_addr_to_watchers[target_addr] = watchers
     end
-    watchers[watcher_addr] = watcher_arg
+
+    local watcher_args = watchers[watcher_addr]
+    if not watcher_args then
+      watcher_args = {}
+      watchers[watcher_addr] = watcher_args
+    end
+    watcher_args[#watcher_args + 1] = watcher_arg
   end
 end
 
+-- The unwatch() is not quite symmetric with watch(), in that
+-- unwatch() clears the entire watcher_args list for a watcher
+-- address.
+--
 local function unwatch(target_addr, watcher_addr)
   watcher_addr = watcher_addr or self_address()
 
