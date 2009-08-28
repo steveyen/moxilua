@@ -69,10 +69,8 @@ local b2x = {
 
       local self_addr = apo.self_address()
 
-      apo.watch(downstream.addr, self_addr, false)
-
-      apo.send(downstream.addr, "fwd", self_addr,
-               response, memcached_client_ascii[opcode], args)
+      apo.send_track(downstream.addr, self_addr, {}, "fwd", self_addr,
+                     response, memcached_client_ascii[opcode], args)
 
       return true
     end,
@@ -95,10 +93,8 @@ local b2x = {
 
       local self_addr = apo.self_address()
 
-      apo.watch(downstream.addr, self_addr, false)
-
-      apo.send(downstream.addr, "fwd", self_addr,
-               response, memcached_client_binary[opcode], args)
+      apo.send_track(downstream.addr, self_addr, {}, "fwd", self_addr,
+                     response, memcached_client_binary[opcode], args)
 
       return true
     end
@@ -117,7 +113,6 @@ local function forward_simple(pool, skt, req, args)
     if b2x[downstream.kind](downstream, skt,
                             pack.opcode(req, 'request'), args) then
       local ok, err = apo.recv()
-      apo.unwatch(downstream.addr)
       if ok then
         return ok, err
       end
@@ -150,11 +145,6 @@ local function forward_broadcast(pool, skt, req, args, response_filter)
       oks = oks + 1
     end
   end
-
-  pool.each(
-    function(downstream)
-      apo.unwatch(downstream.addr) -- TODO: Mismatch window with unwatch.
-    end)
 
   local res =
     pack.create_response(opcode, {

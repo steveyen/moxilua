@@ -21,7 +21,7 @@ local function spawn_downstream(location, done_func)
         end
 
         if notify_addr then
-          apo.send(notify_addr, dconn)
+          apo.send(notify_addr, dconn ~= nil)
         end
       end
 
