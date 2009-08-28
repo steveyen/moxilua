@@ -11,7 +11,8 @@ local function spawn_downstream(location, done_func)
         if what == "fwd" then
           args = args or {}
 
-          if not handler(dconn, response, args) then
+          if not (handler and
+                  handler(dconn, response, args)) then
             dconn:close()
             dconn = nil
           end
