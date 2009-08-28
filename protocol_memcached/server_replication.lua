@@ -4,20 +4,20 @@ local pack = mpb.pack
 
 local SUCCESS = mpb.response_stats.SUCCESS
 
--- Creates a function that replicates a generic msg
--- request across all pools.  Sends the success_msg back
--- upstream if there are at least min_replicas number of
--- downstream successes.  If the input min_replicas is <= 0
--- or nil then all downstreams must succeed before the
--- success_msg is sent.  Otherwise an ERROR is sent.
+-- Creates a function that replicates a generic msg request across all
+-- pools.  Within each pool, the number of replicas is governed by
+-- cmd_policy.num_replica.
 --
--- Note that #pools might be > #min_replicas, which is
--- useful to have lots of replicas, but not have to wait
--- for acknowledgements from all of them.
+-- The created function won't return until it receives responses from
+-- all the downstreams that it made requests to, but the function will
+-- sock_send() an early success_msg back upstream if there are at
+-- least cmd_policy.min_replica number of downstream successes.  If
+-- the input cmd_policy.min_replica is <= 0 or nil then all contacted
+-- downstreams must succeed before the success_msg is sent back
+-- upstream.  Otherwise an ERROR is sent upstream.
 --
-local function create_replicator(success_msg, min_replicas, preferred_replicas)
-  min_replicas       = min_replicas       or 0
-  preferred_replicas = preferred_replicas or 1
+local function create_replicator(success_msg, cmd_policy)
+  cmd_policy = cmd_policy or {}
 
   return function(pools, skt, cmd, msg)
     local first_response_head = nil
@@ -48,7 +48,8 @@ local function create_replicator(success_msg, min_replicas, preferred_replicas)
       local pool = pools[i]
 
       if msg.key then
-        local downstreams = pool.choose_many(msg.key, preferred_replicas)
+        local downstreams = pool.choose_many(msg.key,
+                                             cmd_policy.num_replica)
         for j = 1, #downstreams do
           local downstream = downstreams[j]
           if downstream and
@@ -74,8 +75,10 @@ local function create_replicator(success_msg, min_replicas, preferred_replicas)
     -- Wait for replies, but opportunistically send an
     -- early success_msg as soon as we can.
     --
-    if min_replicas <= 0 then
-      min_replicas = n
+    local min_replica = n
+    if cmd_policy.min_replica and
+       cmd_policy.min_replica > 0 then
+      min_replica = cmd_policy.min_replica
     end
 
     local sent = nil
@@ -87,7 +90,7 @@ local function create_replicator(success_msg, min_replicas, preferred_replicas)
         oks = oks + 1
       end
 
-      if (not sent) and (oks >= min_replicas) then
+      if (not sent) and (oks >= min_replica) then
         sent, err = sock_send(skt, success_msg or first_response())
       end
     end
@@ -96,7 +99,7 @@ local function create_replicator(success_msg, min_replicas, preferred_replicas)
       return sent, err
     end
 
-    if oks >= min_replicas then
+    if oks >= min_replica then
       return sock_send(skt, success_msg or first_response())
     end
 
@@ -107,11 +110,11 @@ end
 ------------------------------------------------------
 
 -- Creates a function that replicates a key-based update
--- request across all pools, with at least min_replicas
+-- request across all pools, with at least min_replica
 -- required before sending a success_msg response.
 --
-local function create_update_replicator(success_msg, min_replicas)
-  local replicator = create_replicator(success_msg, min_replicas)
+local function create_update_replicator(success_msg, cmd_policy)
+  local replicator = create_replicator(success_msg, cmd_policy)
 
   return function(pools, skt, cmd, arr)
     local key = arr[1]
@@ -148,8 +151,8 @@ end
 
 ------------------------------------------------------
 
-local function create_arith_replicator(min_replicas)
-  local replicator = create_replicator(nil, min_replicas)
+local function create_arith_replicator(cmd_policy)
+  local replicator = create_replicator(nil, cmd_policy)
 
   return function(pools, skt, cmd, arr)
     local key    = arr[1]
@@ -165,6 +168,8 @@ end
 ------------------------------------------------------
 
 local function create_replication_spec(policy)
+  policy = policy or {}
+
   return {
     get =
       function(pools, skt, cmd, arr)
@@ -240,32 +245,25 @@ local function create_replication_spec(policy)
       end,
 
     set =
-      create_update_replicator("STORED\r\n",
-                               policy.min_replicas_set or 0),
+      create_update_replicator("STORED\r\n", policy.set),
     add =
-      create_update_replicator("STORED\r\n",
-                               policy.min_replicas_add or 0),
+      create_update_replicator("STORED\r\n", policy.add),
     replace =
-      create_update_replicator("STORED\r\n",
-                               policy.min_replicas_replace or 0),
+      create_update_replicator("STORED\r\n", policy.replace),
     append =
-      create_update_replicator("STORED\r\n",
-                               policy.min_replicas_append or 0),
+      create_update_replicator("STORED\r\n", policy.append),
     prepend =
-      create_update_replicator("STORED\r\n",
-                               policy.min_replicas_prepend or 0),
+      create_update_replicator("STORED\r\n", policy.prepend),
     delete =
-      create_update_replicator("DELETED\r\n",
-                               policy.min_replicas_delete or 0),
+      create_update_replicator("DELETED\r\n", policy.delete),
 
     incr =
-      create_arith_replicator(policy.min_replicas_incr or 0),
+      create_arith_replicator(policy.incr),
     decr =
-      create_arith_replicator(policy.min_replicas_decr or 0),
+      create_arith_replicator(policy.decr),
 
     flush_all =
-      create_replicator("OK\r\n",
-                        policy.min_replicas_flush_all or 0),
+      create_replicator("OK\r\n", policy.flush_all),
 
     quit =
       function(pools, skt, cmd, arr)
@@ -276,11 +274,10 @@ end
 
 ------------------------------------------------------
 
--- Default policy where all replicas receive all updates,
--- and conservatively where min_replicas == #replicas.
+-- Default policy where all pools receive all updates, and replication
+-- within a pool is just 1 (so, no replication).
 --
-memcached_server_replication =
-  create_replication_spec({})
+memcached_server_replication = create_replication_spec()
 
 ------------------------------------------------------
 

@@ -82,6 +82,7 @@ function memcached_pool(locations)
     --
     choose_many =
       function(key, num_downstreams)
+        num_downstreams = num_downstreams or 1
         return { find_downstream(1) }
       end,
 
