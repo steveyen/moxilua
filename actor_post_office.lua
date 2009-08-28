@@ -136,12 +136,32 @@ end
 
 ----------------------------------------
 
+local function finish(child_addr)
+  local watchers = map_addr_to_watchers[child_addr]
+
+  unregister(child_addr)
+
+  -- Notify watchers.
+  --
+  if watchers then
+    for watcher_addr, watcher_arg in pairs(watchers) do
+      if watcher_addr then
+        send(watcher_addr, watcher_arg, child_addr)
+      end
+    end
+  end
+end
+
+----------------------------------------
+
 local function deliver_envelope(envelope)
   -- Must be invoked on main thread.
   if envelope then
     local coro = map_addr_to_coro[envelope.dest_addr]
     if coro then
-      resume(coro, unpack(envelope.dest_msg))
+      if not resume(coro, unpack(envelope.dest_msg)) then
+        finish(envelope.dest_addr)
+      end
     else
       -- The destination coro is gone, probably finished already,
       -- so send the tracking address a notification message.
@@ -237,19 +257,7 @@ local function spawn_with(spawner, f, ...)
       --
       f(child_addr, unpack(child_arg))
 
-      local watchers = map_addr_to_watchers[child_addr]
-
-      unregister(child_addr)
-
-      -- Notify watchers.
-      --
-      if watchers then
-        for watcher_addr, watcher_arg in pairs(watchers) do
-          if watcher_addr then
-            send(watcher_addr, watcher_arg, child_addr)
-          end
-        end
-      end
+      finish(child_addr)
     end
 
   child_coro = spawner(child_fun)
@@ -257,7 +265,9 @@ local function spawn_with(spawner, f, ...)
 
   table.insert(main_todos,
     function()
-      resume(child_coro)
+      if not resume(child_coro) then
+        finish(child_addr)
+      end
     end)
 
   run_main_todos()
