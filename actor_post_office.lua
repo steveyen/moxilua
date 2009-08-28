@@ -292,8 +292,9 @@ end
 -- A call to the related unwatch() function clears all the
 -- registrations for a watcher actor on a target actor.
 --
-local function watch(target_addr, watcher_addr, watcher_arg)
+local function watch(target_addr, watcher_addr, ...)
   watcher_addr = watcher_addr or self_address()
+  watcher_arg  = arg
 
   if target_addr and watcher_addr then
     local watchers = map_addr_to_watchers[target_addr]
