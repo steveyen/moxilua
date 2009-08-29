@@ -1,3 +1,10 @@
+-- A generic W+R>N request replication implementation.
+--
+-- replica_nodes -- array of nodes, higher priority first.
+-- replica_min   -- minimum # of nodes to replicate to.
+--
+------------------------------------------------------
+
 local function get_child_table(t, key)
   local x = t[key]
   if not x then
@@ -7,91 +14,96 @@ local function get_child_table(t, key)
   return x
 end
 
--- A generic, single-key W+R>N request replication algorithm.
---
--- replica_nodes -- array of nodes, higher priority first.
--- replica_min   -- minimum # of nodes to replicate to.
---
-local function replicate_request(request,
+------------------------------------------------------
+
+local function create_replicator(request,
                                  replica_nodes,
                                  replica_min)
-  local replica_next  = 1
-  local received_err  = 0
-  local received_ok   = 0
-  local sent_err      = {} -- Array of nodes that had send errors.
-  local sent_ok       = {} -- Array of nodes that had send successes.
-  local responses     = {} -- Table, keyed by node.
+  local s = {
+    request       = request,
+    replica_nodes = replica_nodes,
+    replica_min   = replica_min,
+    replica_next  = 1,
+    received_err  = 0,
+    received_ok   = 0,
+    sent_err      = {}, -- Array of nodes that had send errors.
+    sent_ok       = {}, -- Array of nodes that had send successes.
+    responses     = {}  -- Table, keyed by node.
+  }
 
-  -- Creates a function/closure that receives and groups
-  -- responses first by key, then by node.
+  -- Creates a function/closure that receives and
+  -- groups responses by node.
   --
   local function make_receive_filter(node)
     return function(head, body)
-             -- Do get_child_table() to avoid creating an empty
-             -- response array too early.
+             -- Do get_child_table() here, lazily, to avoid creating
+             -- an empty response array too early.
              --
-             local r = get_child_table(responses, node)
+             local r = get_child_table(s.responses, node)
 
              r[#r + 1] = { head = head, body = body }
+
              return false
            end
   end
 
-  -- Helper function to send the request to n number of replica nodes.
+  -- Function to keep the invariant where we've sent the request
+  -- successfully to replica_min number of working replica nodes,
+  -- unless we just run out of replica nodes.
   --
-  local function send(n)
-    while (replica_next <= #replica_nodes) and
-          (#sent_ok - received_err) < n do
-      local replica_node = replica_nodes[replica_next]
+  s.send = function()
+    while (s.replica_next <= #s.replica_nodes) and
+          (#s.sent_ok - s.received_err) < s.replica_min do
+      local replica_node = s.replica_nodes[s.replica_next]
 
-      local ok, err = replica_node:send(request,
+      local ok, err = replica_node:send(s.request,
                                         make_receive_filter(replica_node))
       if ok then
-        sent_ok[#sent_ok + 1] = replica_node
+        s.sent_ok[#s.sent_ok + 1] = replica_node
       else
-        sent_err[#sent_err + 1] = replica_node
+        s.sent_err[#s.sent_err + 1] = replica_node
       end
 
-      replica_next = replica_next + 1
+      s.replica_next = s.replica_next + 1
     end
   end
+
+  return s
+end
+
+------------------------------------------------------
+
+local function replicate_request(request,
+                                 replica_nodes,
+                                 replica_min)
+  local s = create_replicator(request,
+                              replica_nodes,
+                              replica_min)
 
   -- Send out the request to replica_min number of replica nodes or
   -- until we just don't have enough working replica_nodes.
   --
-  send(replica_min)
+  s.send()
 
   -- Wait for responses to what we successfully sent.  If we received
   -- an error, do another round of send() of the request to a
   -- remaining replica, if any are left.
   --
-  while (received_ok + received_err) < #sent_ok do
+  while (s.received_ok + s.received_err) < #s.sent_ok do
     if apo.recv() then
-      received_ok = received_ok + 1
+      s.received_ok = s.received_ok + 1
     else
-      received_err = received_err + 1
+      s.received_err = s.received_err + 1
 
-      send(replica_min)
+      s.send()
     end
   end
 
-  local state = {
-    request       = request,
-    replica_nodes = replica_nodes,
-    replica_min   = replica_min,
-    replica_next  = replica_next,
-    received_err  = received_err,
-    received_ok   = received_ok,
-    sent_err      = sent_err,
-    sent_ok       = sent_ok,
-    responses     = responses
-  }
-
-  if (#sent_ok - received_err) < replica_min then
-    return nil, "not enough working replicas", state
+  if (#s.sent_ok - s.received_err) < s.replica_min then
+    return nil, "not enough working replicas", s
   end
 
-  return true, nil, state
+  return true, nil, s
 end
 
 --------------------------------------------------------
@@ -178,6 +190,7 @@ end
 --------------------------------------------------------
 
 return {
+  create_replicator          = create_replicator,
   replicate_request          = replicate_request,
   replicate_retrieval        = replicate_retrieval,
   replicate_retrieval_repair = replicate_retrieval_repair,
