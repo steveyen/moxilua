@@ -1,4 +1,4 @@
--- A generic W+R>N request replication implementation.
+-- A generic, single request W+R>N replication implementation.
 --
 -- replica_nodes -- array of nodes, higher priority first.
 -- replica_min   -- minimum # of nodes to replicate to.
@@ -52,6 +52,8 @@ local function create_replicator(request,
   -- unless we just run out of replica nodes.
   --
   s.send = function()
+    local start_sent_ok = #s.sent_ok
+
     while (s.replica_next <= #s.replica_nodes) and
           (#s.sent_ok - s.received_err) < s.replica_min do
       local replica_node = s.replica_nodes[s.replica_next]
@@ -67,6 +69,8 @@ local function create_replicator(request,
 
       s.replica_next = s.replica_next + 1
     end
+
+    return #s.sent_ok > start_sent_ok
   end
 
   return s
@@ -100,7 +104,7 @@ local function replicate_request(request,
     end
   end
 
-  if (#s.sent_ok - s.received_err) < s.replica_min then
+  if s.received_ok < s.replica_min then
     return nil, "not enough working replicas", s
   end
 
@@ -190,9 +194,134 @@ end
 
 --------------------------------------------------------
 
+-- Multiple-request W+R>N replication algorithm.
+--
+-- Based on the single-request W+R>N replication code, the
+-- multi-request code does waves or phases of scatter, then gather,
+-- for multiple requests.  For memcached protocol, this is good for
+-- multi-get.
+--
+-- Imagine multi-get for keys: a b c d
+--
+-- And that we have four nodes, so N == 4.
+--
+-- And here are the consistent-hashing node lists for each key
+-- (lowercase letters), where nodes are numbers...
+--
+--   a - 1 2 3 4
+--   b - 2 3 4 1
+--   c - 3 4 1 2
+--   d - 4 1 2 3
+--
+-- In the algorithm, imagine we have vertical lines moving right,
+-- where the number of working nodes to the left of a vertical line
+-- (per row) should be the same as R.  If R was 2, then we'd send the
+-- key "a" to nodes 1 and 2, and send the key "b" to nodes 2 and 3,
+-- and so forth...
+--
+--   a - 1 2 | 3 4
+--   b - 2 3 | 4 1
+--   c - 3 4 | 1 2
+--   d - 4 1 | 2 3
+--
+-- Next, if node 2 went down or returned an error, we'd need another
+-- pass (or wave) of sends to nodes.  Diagram-wise, we'd move some of
+-- the vertical lines to the right to keep the R invariant.  Below,
+-- we'd have to send key "a" to node 3, and key "b" to node 4...
+--
+--   a - 1 x |  3 | 4
+--   b - x 3 |  4 | 1
+--   c - 3 4 || 1   x
+--   d - 4 1 || x   3
+--
+-- Imagine next if node 3 also goes down.  After sending out key "a"
+-- to node 4, and key "b" to node 1, and key "c" to node 1", the
+-- diagram looks like...
+--
+--   a - 1 x |   x | 4 |
+--   b - x x |   4 | 1 |
+--   c - x 4 ||  1 | x
+--   d - 4 1 ||| x   x
+--
+-- If a vertical line goes further off the right edge, we've run out
+-- of replicas to satisfy read quorum (the R number) for a key.
+
+------------------------------------------------------
+
+-- The request_to_replica_nodes is a table, key'ed by request, value
+-- is array of replica_nodes.
+--
+local function replicate_requests(request_to_replica_nodes,
+                                  replica_min,
+                                  replica_sends_done)
+  local request_to_replicator = {}
+
+  for request, replica_nodes in pairs(request_to_replica_nodes) do
+    local replicator = create_replicator(request,
+                                         replica_nodes,
+                                         replica_min)
+
+    request_to_replicator[request] = replicator
+
+    replicator.send()
+  end
+
+  -- Notification to allow the caller to uncork any real, underlying sends.
+  --
+  replica_sends_done()
+
+  -- Wait for responses to what we successfully sent.  If we received
+  -- an error, do another round of replicator.send() of the request to a
+  -- remaining replica, if any are left.
+  --
+  local num_recv_needed
+
+  repeat
+    num_recv_needed = 0
+
+    for request, r in pairs(request_to_replicator) do
+      if (r.received_ok + r.received_err) < #r.sent_ok then
+        num_recv_needed = num_recv_needed + 1
+      end
+    end
+
+    local sent = 0
+
+    for i = 1, num_recv_needed do
+      local ok, err, replicator = apo.recv()
+      if replicator then
+        if ok then
+          replicator.received_ok = replicator.received_ok + 1
+        else
+          replicator.received_err = replicator.received_err + 1
+
+          if replicator.send() then
+            sent = sent + 1
+          end
+        end
+      end
+    end
+
+    if sent > 0 then
+      replica_sends_done()
+    end
+  until num_recv_needed <= 0
+
+  for request, replicator in pairs(request_to_replicator) do
+    if replicator.received_ok < replicator.replica_min then
+      return nil, "not enough working replicas", request_to_replicator
+    end
+  end
+
+  return true, nil, request_to_replicator
+end
+
+--------------------------------------------------------
+
 return {
   create_replicator          = create_replicator,
   replicate_request          = replicate_request,
+  replicate_requests         = replicate_requests,
   replicate_retrieval        = replicate_retrieval,
   replicate_retrieval_repair = replicate_retrieval_repair,
   replicate_update           = replicate_update
