@@ -251,6 +251,11 @@ end
 -- The request_to_replica_nodes is a table, key'ed by request, value
 -- is array of replica_nodes.
 --
+-- The replica_sends_done() is a callback function, so that the
+-- caller can receive notifications when a round of send()'s are done.
+-- This allows the caller to batch up send() calls and uncork them
+-- during the replica_sends_done() callback.
+--
 local function replicate_requests(request_to_replica_nodes,
                                   replica_min,
                                   replica_sends_done)
