@@ -1,4 +1,4 @@
-function get_table(t, key)
+local function get_child_table(t, key)
   local x = t[key]
   if not x then
     x = {}
@@ -7,7 +7,7 @@ function get_table(t, key)
   return x
 end
 
--- A generic W+R>N request replication algorithm.
+-- A generic, single-key W+R>N request replication algorithm.
 --
 -- replica_nodes -- array of nodes, higher priority first.
 -- replica_min   -- minimum # of nodes to replicate to.
@@ -26,9 +26,12 @@ local function replicate_request(request,
   -- responses first by key, then by node.
   --
   local function make_receive_filter(node)
-    local r = get_table(responses, node)
-
     return function(head, body)
+             -- Do get_child_table() to avoid creating an empty
+             -- response array too early.
+             --
+             local r = get_child_table(responses, node)
+
              r[#r + 1] = { head = head, body = body }
              return false
            end
@@ -89,7 +92,7 @@ local function replicate_request(request,
   end
 
   return true, nil, state
-}
+end
 
 --------------------------------------------------------
 
@@ -171,3 +174,12 @@ local function replicate_update(request,
 
   return ok, err, state
 end
+
+--------------------------------------------------------
+
+return {
+  replicate_request          = replicate_request,
+  replicate_retrieval        = replicate_retrieval,
+  replicate_retrieval_repair = replicate_retrieval_repair,
+  replicate_update           = replicate_update
+}

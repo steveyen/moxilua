@@ -12,11 +12,11 @@ function printa(a, prefix)
     for i, v in pairs(a) do
       if i ~= 'n' then
         if type(v) == 'table' then
-          p(prefix .. i .. ' {')
+          p(prefix .. tostring(i) .. ' {')
           printa(v, prefix .. '  ')
           p(prefix .. '}')
         else
-          p(prefix .. i .. ' ' .. tostring(v))
+          p(prefix .. tostring(i) .. ' ' .. tostring(v))
         end
       end
     end
