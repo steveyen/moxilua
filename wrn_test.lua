@@ -21,13 +21,11 @@ apo = {
       local r = assert(recv_arr[recv_calls])
       local si = assert(r.sent_id)
       local sa = assert(sent_arr[si])
-      if assert(sa[1] == "send") then
-        local filter = assert(sa[4])
-        filter(assert(r.head),
-               assert(r.body))
-        return true
-      end
-      return nil
+      assert(sa[1] == "send")
+      local filter = assert(sa[4])
+      filter(assert(r.head),
+             assert(r.body))
+      return true, nil, assert(sa[5])
     end
 }
 
@@ -37,8 +35,9 @@ local function fresh()
   recv_arr = {}
 end
 
-local function node_send(self, request, filter)
-  sent_arr[#sent_arr + 1] = { "send", self, request, filter }
+local function node_send(self, request, filter, apo_reply_data)
+  assert(self and request and filter and apo_reply_data)
+  sent_arr[#sent_arr + 1] = { "send", self, request, filter, apo_reply_data }
   return self.ok
 end
 

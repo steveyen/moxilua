@@ -57,7 +57,8 @@ local function create_replicator(request,
       local replica_node = s.replica_nodes[s.replica_next]
 
       local ok, err = replica_node:send(s.request,
-                                        make_receive_filter(replica_node))
+                                        make_receive_filter(replica_node),
+                                        s)
       if ok then
         s.sent_ok[#s.sent_ok + 1] = replica_node
       else
