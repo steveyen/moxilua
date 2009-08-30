@@ -127,37 +127,42 @@ end
 
 --------------------------------------------------------
 
--- Creates and runs a replicator for a retrieval request, calculating
+-- Creates and runs a replicator for a retrieve request, calculating
 -- the best response from all the responses received (if replica_min
 -- number of responses were received).
 --
--- The caller must supply a compare_verion(responseA, responseB)
--- function, which should return > 0 if responseA > responseB,
+-- The caller must supply a function, compare_version(responseA,
+-- responseB, responseA_node, responseB_node), which should return > 0
+-- if responseA > responseB,
 --
-local function replicate_retrieval(request,
-                                   replica_nodes,
-                                   replica_min,
-                                   compare_version)
+local function replicate_retrieve(request,
+                                  replica_nodes,
+                                  replica_min,
+                                  compare_version)
   local ok, err, state = replicate_request(request,
                                            replica_nodes,
                                            replica_min)
   if ok then
     -- Find the best, most recent response.
     --
-    local response_best = nil
+    local response_best      = nil
+    local response_best_node = nil
 
     for node, node_responses in pairs(state.responses) do
       for i = 1, #node_responses do
         local response = node_responses[i]
         if (not response_best) or
-           (compare_version ~= nil and
-            compare_version(response, response_best) > 0) then
-          response_best = response
+           (compare_version and
+            compare_version(response, response_best,
+                            node, response_best_node) > 0) then
+          response_best      = response
+          response_best_node = node
         end
       end
     end
 
-    state.response_best = response_best
+    state.response_best      = response_best
+    state.response_best_node = response_best_node
   end
 
   return ok, err, state
@@ -165,21 +170,21 @@ end
 
 --------------------------------------------------------
 
--- Same as replicate_retrieval, but with an additional "read repair"
+-- Same as replicate_retrieve, but with an additional "read repair"
 -- step that updates outdated replica nodes with the best response.
 --
 -- The caller must supply a replica_update(node, new_value,
--- original_retrieval_request) function.
+-- original_retrieve_request) function.
 --
-local function replicate_retrieval_repair(request,
-                                          replica_nodes,
-                                          replica_min,
-                                          compare_version,
-                                          replica_update)
-  local ok, err, state = replicate_retrieval(request,
-                                             replica_nodes,
-                                             replica_min,
-                                             compare_version)
+local function replicate_retrieve_repair(request,
+                                         replica_nodes,
+                                         replica_min,
+                                         compare_version,
+                                         replica_update)
+  local ok, err, state = replicate_retrieve(request,
+                                            replica_nodes,
+                                            replica_min,
+                                            compare_version)
   if ok then
     for node, node_responses in pairs(state.responses) do
       if not (#node_responses == 1 and
