@@ -1,4 +1,4 @@
--- A generic, single request W+R>N replication implementation.
+-- A generic W+R>N replication implementation.
 --
 -- replica_nodes -- array of nodes, higher priority first.
 -- replica_min   -- minimum # of nodes to replicate to.
@@ -16,6 +16,10 @@ end
 
 ------------------------------------------------------
 
+-- Creates a generic, single-request replicator tracking object that
+-- follows W+R>N ideas.  The returned replicator has a send() function
+-- that keeps the replica_min invariant.
+--
 local function create_replicator(request,
                                  replica_nodes,
                                  replica_min)
@@ -78,6 +82,8 @@ end
 
 ------------------------------------------------------
 
+-- Creates and runs a replicator for a single request.
+--
 local function replicate_request(request,
                                  replica_nodes,
                                  replica_min)
@@ -113,6 +119,13 @@ end
 
 --------------------------------------------------------
 
+-- Creates and runs a replicator for a retrieval request, calculating
+-- the best response from all the responses received (if replica_min
+-- number of responses were received).
+--
+-- The caller must supply a compare_verion(responseA, responseB)
+-- function, which should return > 0 if responseA > responseB,
+--
 local function replicate_retrieval(request,
                                    replica_nodes,
                                    replica_min,
@@ -144,8 +157,11 @@ end
 
 --------------------------------------------------------
 
--- Same as replicate_retrieval, but with "read repair"
--- that updates outdated replica nodes with the best response.
+-- Same as replicate_retrieval, but with an additional "read repair"
+-- step that updates outdated replica nodes with the best response.
+--
+-- The caller must supply a replica_update(node, new_value,
+-- original_retrieval_request) function.
 --
 local function replicate_retrieval_repair(request,
                                           replica_nodes,
@@ -160,7 +176,7 @@ local function replicate_retrieval_repair(request,
     for node, node_responses in pairs(state.responses) do
       if not (#node_responses == 1 and
               node_responses[1] == state.response_best) then
-        replica_update(node, state.response_best)
+        replica_update(node, state.response_best, request)
       end
     end
   end
@@ -170,6 +186,11 @@ end
 
 --------------------------------------------------------
 
+-- Creates and runs a replicator for an update request -- eg, a write
+-- or a delete request.  When replica_min (or W) number of replicas
+-- have responded successfully, this function uses asynchronous
+-- sendq() messages to get the remaining replicas updated.
+--
 local function replicate_update(request,
                                 replica_nodes,
                                 replica_min)
@@ -180,6 +201,8 @@ local function replicate_update(request,
     -- We have synchronous quorum with replica_min number of updates,
     -- but kick off quiet, asynchronous updates to the rest of the
     -- replicas.
+    --
+    -- TODO: Still need to handle the replicas that were down, too.
     --
     for i = state.replica_next, #replica_nodes do
       local replica_node = replica_nodes[i]
@@ -196,7 +219,7 @@ end
 -- Multiple-request W+R>N replication algorithm.
 --
 -- Based on the single-request W+R>N replication code, the
--- multi-request code does waves or phases of scatter, then gather,
+-- multi-request code does waves (or phases) of scatter, then gather,
 -- for multiple requests.  For memcached protocol, this is good for
 -- multi-get.
 --
@@ -205,7 +228,8 @@ end
 -- And that we have four nodes, so N == 4.
 --
 -- And here are the consistent-hashing node lists for each key
--- (lowercase letters), where nodes are numbers...
+-- (lowercase letters), where nodes are numbers.  So, key "a"
+-- should live on nodes 1, 2, 3, 4, in that priority order.
 --
 --   a - 1 2 3 4
 --   b - 2 3 4 1
@@ -213,29 +237,50 @@ end
 --   d - 4 1 2 3
 --
 -- In the algorithm, imagine we have vertical lines moving right,
--- where the number of working nodes to the left of a vertical line
--- (per row) should be the same as R.  If R was 2, then we'd send the
--- key "a" to nodes 1 and 2, and send the key "b" to nodes 2 and 3,
--- and so forth...
+-- where the number of alive, working nodes to the left of the
+-- rightmost vertical line (per row) should be the same as R.
+-- Remember R in the W+R>N is the number of successful blocking
+-- replica reads that we need.  This vertial line stuff is our
+-- "invariant" rule.
+--
+-- If R was 2, for example, we'd draw vertical lines as below.  And,
+-- we'd know to send the request for key "a" to nodes 1 and 2, and
+-- send the request for key "b" to nodes 2 and 3, and so forth...
 --
 --   a - 1 2 | 3 4
 --   b - 2 3 | 4 1
 --   c - 3 4 | 1 2
 --   d - 4 1 | 2 3
 --
--- Next, if node 2 went down or returned an error, we'd need another
--- pass (or wave) of sends to nodes.  Diagram-wise, we'd move some of
--- the vertical lines to the right to keep the R invariant.  Below,
--- we'd have to send key "a" to node 3, and key "b" to node 4...
+-- Next, if node 2 went down or returned an error, let's cross-out
+-- the "2"'s from the diagram.
+--
+--   a - 1 x | 3 4
+--   b - x 3 | 4 1
+--   c - 3 4 | 1 x
+--   d - 4 1 | x 3
+--
+-- Then, to restore the vertical line invariant, we'd need another
+-- pass (or wave) of vertical lines.  Diagram-wise, we'd draw some
+-- more vertical lines a little to the right of the previous vertical
+-- lines in order to keep the invariant.  Below, now know we'd have to
+-- send a request for key "a" to node 3, and a request for key "b" to
+-- node 4...
 --
 --   a - 1 x |  3 | 4
 --   b - x 3 |  4 | 1
 --   c - 3 4 || 1   x
 --   d - 4 1 || x   3
 --
--- Imagine next if node 3 also goes down.  After sending out key "a"
--- to node 4, and key "b" to node 1, and key "c" to node 1", the
--- diagram looks like...
+-- Imagine next if node 3 also goes down...
+--
+--   a - 1 x |  x | 4
+--   b - x x |  4 | 1
+--   c - x 4 || 1   x
+--   d - 4 1 || x   x
+--
+-- We add more vertical lines, and know to request key "a" from node
+-- 4, key "b" from node 1, and key "c" from node 1...
 --
 --   a - 1 x |   x | 4 |
 --   b - x x |   4 | 1 |
