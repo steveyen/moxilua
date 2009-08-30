@@ -172,8 +172,7 @@ end
 
 local function replicate_update(request,
                                 replica_nodes,
-                                replica_min,
-                                compare_version)
+                                replica_min)
   local ok, err, state = replicate_request(request,
                                            replica_nodes,
                                            replica_min)
