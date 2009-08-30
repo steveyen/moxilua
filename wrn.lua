@@ -1,5 +1,8 @@
 -- A generic W+R>N replication implementation.
 --
+-- It's generic in that the actual implementation of a request,
+-- response and replica node is abstracted out.  Just duck typing.
+--
 -- replica_nodes -- array of nodes, higher priority first.
 -- replica_min   -- minimum # of nodes to replicate to.
 --
