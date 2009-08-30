@@ -33,7 +33,7 @@ local function create_replicator(request,
     replica_next  = 1,
     received_err  = 0,
     received_ok   = 0,
-    sent_err      = {}, -- Array of nodes that had send errors.
+    sent_err      = {}, -- Array of { node, err } tuples.
     sent_ok       = {}, -- Array of nodes that had send successes.
     responses     = {}  -- Table, keyed by node.
   }
@@ -71,7 +71,7 @@ local function create_replicator(request,
       if ok then
         s.sent_ok[#s.sent_ok + 1] = replica_node
       else
-        s.sent_err[#s.sent_err + 1] = replica_node
+        s.sent_err[#s.sent_err + 1] = { replica_node, err }
       end
 
       s.replica_next = s.replica_next + 1
@@ -104,12 +104,17 @@ local function replicate_request(request,
   -- remaining replica, if any are left.
   --
   while (s.received_ok + s.received_err) < #s.sent_ok do
-    if apo.recv() then
-      s.received_ok = s.received_ok + 1
-    else
-      s.received_err = s.received_err + 1
+    local ok, err, replicator = apo.recv()
+    if replicator == s then
+      if ok then
+        s.received_ok = s.received_ok + 1
+      else
+        s.received_err = s.received_err + 1
 
-      s.send()
+        s.send()
+      end
+    else
+      -- TODO: Bad situation when replicator != s.
     end
   end
 
