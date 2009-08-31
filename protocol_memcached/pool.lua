@@ -7,7 +7,7 @@ local function spawn_downstream(location, done_func)
   return apo.spawn(
     function(self_addr)
       while dconn do
-        local what, notify_addr, response, handler, args = apo.recv()
+        local what, notify_addr, response, handler, args, notify_data = apo.recv()
         if what == "fwd" then
           args = args or {}
 
@@ -21,7 +21,12 @@ local function spawn_downstream(location, done_func)
         end
 
         if notify_addr then
-          apo.send(notify_addr, dconn ~= nil)
+          local ok, err = true, nil
+          if not dconn then
+            ok, err = false, "downstream closed"
+          end
+
+          apo.send(notify_addr, ok, err, notify_data)
         end
       end
 
