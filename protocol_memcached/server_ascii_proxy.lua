@@ -14,15 +14,16 @@ binary_success[mpb.command.DELETE] = "DELETED\r\n"
 local a2x -- Means ascii upstream to variable downstream.
 
 a2x = {
+  -- The args looks like { keys = { "a", "b", "c", ... } }
+  -- or like { key = "a", flag = 0, expire = 0, data = "hello" }
+  --
   forward =
-    function(downstream, skt, cmd, args, response_filter)
-      -- The args looks like { keys = { "a", "b", "c", ... } }
-      -- or like { key = "a", flag = 0, expire = 0, data = "hello" }
-      --
+    function(downstream, skt, cmd, args, response_filter, notify_data)
       local function response(head, body)
         if (not response_filter) or
            response_filter(head, body) then
-          return a2x.send_response_from[downstream.kind](skt, head, body)
+          return a2x.send_response_from[downstream.kind](skt, cmd, args,
+                                                         head, body)
         end
 
         return true
@@ -32,8 +33,11 @@ a2x = {
 
       apo.watch(downstream.addr, self_addr, false)
 
-      apo.send_track(downstream.addr, self_addr, {}, "fwd", self_addr,
-                     response, memcached_client[downstream.kind][cmd], args)
+      apo.send_track(downstream.addr,
+                     self_addr, { false, "missing downstream", notify_data },
+                     "fwd", self_addr, response,
+                     memcached_client[downstream.kind][cmd], args,
+                     notify_data)
 
       return true
     end,
@@ -42,7 +46,7 @@ a2x = {
 
   send_response_from = {
     ascii =
-      function(skt, head, body) -- Downstream is ascii.
+      function(skt, req_cmd, req_args, head, body) -- Downstream is ascii.
         return skt and
                (head and
                 sock_send(skt, head .. "\r\n")) and
@@ -51,12 +55,12 @@ a2x = {
       end,
 
     binary =
-      function(skt, head, body) -- Downstream is binary.
+      function(skt, req_cmd, req_args, head, body) -- Downstream is binary.
         if skt then
           if pack.status(head) == SUCCESS then
             local opcode = pack.opcode(head, 'response')
             if opcode == mpb.command.GETKQ or
-              opcode == mpb.command.GETK then
+               opcode == mpb.command.GETK then
               return sock_send(skt, "VALUE " ..
                                body.key .. " 0 " ..
                                string.len(body.data) .. "\r\n" ..

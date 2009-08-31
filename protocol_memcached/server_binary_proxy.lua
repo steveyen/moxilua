@@ -17,11 +17,12 @@ local b2x -- Means binary upstream to variable downstream.
 
 b2x = {
   forward =
-    function(downstream, skt, cmd, args, response_filter)
+    function(downstream, skt, cmd, args, response_filter, notify_data)
       local function response(head, body)
         if (not response_filter) or
            response_filter(head, body) then
-          return b2x.send_response_from[downstream.kind](skt, head, body)
+          return b2x.send_response_from[downstream.kind](skt, cmd, args,
+                                                         head, body)
         end
 
         return true
@@ -31,8 +32,11 @@ b2x = {
 
       apo.watch(downstream.addr, self_addr, false)
 
-      apo.send_track(downstream.addr, self_addr, {}, "fwd", self_addr,
-                     response, memcached_client[downstream.kind][cmd], args)
+      apo.send_track(downstream.addr,
+                     self_addr, { false, "missing downstream", notify_data },
+                     "fwd", self_addr, response,
+                     memcached_client[downstream.kind][cmd], args,
+                     notify_data)
 
       return true
     end,
@@ -41,7 +45,7 @@ b2x = {
 
   send_response_from = {
     ascii =
-      function(skt, head, body) -- Downstream is ascii.
+      function(skt, opcode, req_args, head, body) -- Downstream is ascii.
         if skt then
           if head == "OK" or
              head == "END" or
@@ -90,7 +94,7 @@ b2x = {
       end,
 
     binary =
-      function(skt, head, body) -- Downstream is binary.
+      function(skt, opcode, req_args, head, body) -- Downstream is binary.
         if skt then
           local msg =
             pack.pack_message(head, body.key, body.ext, body.data)
