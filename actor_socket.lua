@@ -30,8 +30,11 @@ local function skt_unwait(skt, sockets, reverse)
 end
 
 local function skt_wait(skt, sockets, reverse, actor_addr)
+  assert(not waiting_actors[skt])
+  assert(not reverse[skt])
+
   waiting_actors[skt] = actor_addr
-  table.insert(sockets, skt)
+  sockets[#sockets + 1] = skt
   reverse[skt] = #sockets
 end
 
@@ -78,6 +81,7 @@ local function recv(actor_addr, skt, pattern, part)
 
   repeat
     skt_unwait(skt, reading, reverse_r)
+    skt_unwait(skt, writing, reverse_w)
 
     s, err, part = skt:receive(pattern, part)
     if s or err ~= "timeout" then
@@ -86,7 +90,7 @@ local function recv(actor_addr, skt, pattern, part)
 
     skt_wait(skt, reading, reverse_r, actor_addr)
 
-    coroutine.yield()
+    assert(skt == coroutine.yield())
   until false
 end
 
@@ -95,6 +99,7 @@ local function send(actor_addr, skt, data, from, to)
   local lastIndex = from - 1
 
   repeat
+    skt_unwait(skt, reading, reverse_r)
     skt_unwait(skt, writing, reverse_w)
 
     local s, err, lastIndex = skt:send(data, lastIndex + 1, to)
@@ -104,7 +109,7 @@ local function send(actor_addr, skt, data, from, to)
 
     skt_wait(skt, writing, reverse_w, actor_addr)
 
-    coroutine.yield()
+    assert(skt == coroutine.yield())
   until false
 end
 
@@ -113,6 +118,7 @@ local function loop_accept(actor_addr, skt, handler, timeout)
 
   repeat
     skt_unwait(skt, reading, reverse_r)
+    skt_unwait(skt, writing, reverse_w)
 
     local client_skt, err = skt:accept()
     if client_skt then
@@ -121,7 +127,7 @@ local function loop_accept(actor_addr, skt, handler, timeout)
 
     skt_wait(skt, reading, reverse_r, actor_addr)
 
-    coroutine.yield()
+    assert(skt == coroutine.yield())
   until false
 end
 
