@@ -13,55 +13,15 @@ local SUCCESS = mpb.response_stats.SUCCESS
 
 -- Translators for binary upstream to different downstreams.
 --
-local b2x = {
-  ascii = -- Downstream is ascii.
-    function(downstream, skt, opcode, args, response_filter)
+local b2x -- Means binary upstream to variable downstream.
+
+b2x = {
+  forward =
+    function(downstream, skt, cmd, args, response_filter)
       local function response(head, body)
         if (not response_filter) or
            response_filter(head, body) then
-          if skt then
-            if head == "OK" or
-               head == "END" or
-               head == "STORED" or
-               head == "DELETED" then
-              if opcode ~= mpb.command.NOOP and
-                 opcode ~= mpb.command.FLUSH then
-                local res =
-                  pack.create_response(opcode, {
-                    status = SUCCESS,
-                    opaque = pack.opaque(args.req, 'request')
-                  })
-
-                return sock_send(skt, res)
-              end
-
-              return true -- Swallow FLUSH broadcast replies.
-            end
-
-            local vfound, vlast, key = string.find(head, "^VALUE (%S+)")
-            if vfound and key then
-              local res =
-                pack.create_response(opcode, {
-                  status = SUCCESS,
-                  opaque = pack.opaque(args.req, 'request'),
-                  key    = key,
-                  ext    = string.char(0, 0, 0, 0),
-                  data   = body.data
-                })
-
-              return sock_send(skt, res)
-            end
-
-            local res =
-              pack.create_response(opcode, {
-                status = mpb.response_stats.EINVAL,
-                key    = key,
-                data   = body.data,
-                opaque = pack.opaque(args.req, 'request')
-              })
-
-            return sock_send(skt, res)
-          end
+          return b2x.send_response_from[downstream.kind](skt, head, body)
         end
 
         return true
@@ -72,36 +32,75 @@ local b2x = {
       apo.watch(downstream.addr, self_addr, false)
 
       apo.send_track(downstream.addr, self_addr, {}, "fwd", self_addr,
-                     response, memcached_client_ascii[opcode], args)
+                     response, memcached_client[downstream.kind][cmd], args)
 
       return true
     end,
 
-  binary = -- Downstream is binary.
-    function(downstream, skt, opcode, args, response_filter)
-      local function response(head, body)
-        if (not response_filter) or
-           response_filter(head, body) then
-          if skt then
-            local msg =
-              pack.pack_message(head, body.key, body.ext, body.data)
+  -------------------------------------
 
-            return sock_send(skt, msg)
+  send_response_from = {
+    ascii =
+      function(skt, head, body) -- Downstream is ascii.
+        if skt then
+          if head == "OK" or
+             head == "END" or
+             head == "STORED" or
+             head == "DELETED" then
+            if opcode ~= mpb.command.NOOP and
+               opcode ~= mpb.command.FLUSH then
+              local res =
+                pack.create_response(opcode, {
+                                       status = SUCCESS,
+                                       opaque = pack.opaque(args.req, 'request')
+                                     })
+
+              return sock_send(skt, res)
+            end
+
+            return true -- Swallow FLUSH broadcast replies.
           end
+
+          local vfound, vlast, key = string.find(head, "^VALUE (%S+)")
+          if vfound and key then
+            local res =
+              pack.create_response(opcode, {
+                                     status = SUCCESS,
+                                     opaque = pack.opaque(args.req, 'request'),
+                                     key    = key,
+                                     ext    = string.char(0, 0, 0, 0),
+                                     data   = body.data
+                                   })
+
+            return sock_send(skt, res)
+          end
+
+          local res =
+            pack.create_response(opcode, {
+                                   status = mpb.response_stats.EINVAL,
+                                   key    = key,
+                                   data   = body.data,
+                                   opaque = pack.opaque(args.req, 'request')
+                                 })
+
+          return sock_send(skt, res)
+        end
+
+        return true
+      end,
+
+    binary =
+      function(skt, head, body) -- Downstream is binary.
+        if skt then
+          local msg =
+            pack.pack_message(head, body.key, body.ext, body.data)
+
+          return sock_send(skt, msg)
         end
 
         return true
       end
-
-      local self_addr = apo.self_address()
-
-      apo.watch(downstream.addr, self_addr, false)
-
-      apo.send_track(downstream.addr, self_addr, {}, "fwd", self_addr,
-                     response, memcached_client_binary[opcode], args)
-
-      return true
-    end
+  }
 }
 
 ------------------------------------------------------
@@ -114,8 +113,8 @@ local function forward_simple(pool, skt, req, args)
   local downstream = pool.choose(args.key)
   if downstream and
      downstream.addr then
-    if b2x[downstream.kind](downstream, skt,
-                            pack.opcode(req, 'request'), args) then
+    if b2x.forward(downstream, skt,
+                   pack.opcode(req, 'request'), args) then
       local ok, err = apo.recv()
       apo.unwatch(downstream.addr)
       if ok then
@@ -138,8 +137,8 @@ local function forward_broadcast(pool, skt, req, args, response_filter)
 
   pool.each(
     function(downstream)
-      if b2x[downstream.kind](downstream, skt,
-                              opcode, args, response_filter) then
+      if b2x.forward(downstream, skt,
+                     opcode, args, response_filter) then
         n = n + 1
       end
     end)
@@ -250,3 +249,8 @@ msbp[c.BUCKET] =
   function(pool, skt, req, args)
   end
 
+------------------------------------------------------
+
+memcached_server.binary.proxy = memcached_server_binary_proxy
+
+memcached_server.binary.proxy_b2x = b2x

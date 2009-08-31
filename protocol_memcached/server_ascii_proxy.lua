@@ -77,6 +77,8 @@ a2x = {
 
           return sock_send(skt, "ERROR " .. body.data .. "\r\n")
         end
+
+        return true
       end
   }
 }
@@ -241,6 +243,8 @@ memcached_server_ascii_proxy = {
       return false
     end
 }
+
+------------------------------------------------------
 
 memcached_server.ascii.proxy = memcached_server_ascii_proxy
 
