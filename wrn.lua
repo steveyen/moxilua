@@ -125,6 +125,31 @@ end
 
 --------------------------------------------------------
 
+-- Find the best response via a compare_version() function.
+--
+local function best_node_response(map_node_to_responses,
+                                  compare_version)
+  local best_response = nil
+  local best_node     = nil
+
+  for node, node_responses in pairs(map_node_to_responses) do
+    for i = 1, #node_responses do
+      local response = node_responses[i]
+      if (not best_response) or
+          (compare_version and
+           compare_version(response, best_response,
+                           node,     best_node) > 0) then
+        best_response = response
+        best_node     = node
+      end
+    end
+  end
+
+  return best_response, best_node
+end
+
+--------------------------------------------------------
+
 -- Creates and runs a replicator for a retrieve request, calculating
 -- the best response from all the responses received (if replica_min
 -- number of responses were received).
@@ -137,30 +162,12 @@ local function replicate_retrieve(request,
                                   replica_nodes,
                                   replica_min,
                                   compare_version)
-  local ok, err, state = replicate_request(request,
-                                           replica_nodes,
-                                           replica_min)
+  local ok, err, r = replicate_request(request,
+                                       replica_nodes,
+                                       replica_min)
   if ok then
-    -- Find the best, most recent response.
-    --
-    local response_best      = nil
-    local response_best_node = nil
-
-    for node, node_responses in pairs(state.responses) do
-      for i = 1, #node_responses do
-        local response = node_responses[i]
-        if (not response_best) or
-           (compare_version and
-            compare_version(response, response_best,
-                            node, response_best_node) > 0) then
-          response_best      = response
-          response_best_node = node
-        end
-      end
-    end
-
-    state.response_best      = response_best
-    state.response_best_node = response_best_node
+    r.response_best, r.response_best_node =
+      best_node_response(r.responses, compare_version)
   end
 
   return ok, err, state
@@ -308,16 +315,21 @@ end
 ------------------------------------------------------
 
 -- The request_to_replica_nodes is a table, key'ed by request, value
--- is array of replica_nodes.
+-- is array of replica_nodes in priority order.
 --
 -- The replica_sends_done() is a callback function, so that the
 -- caller can receive notifications when a round of send()'s are done.
 -- This allows the caller to batch up send() calls and uncork them
 -- during the replica_sends_done() callback.
 --
+-- The replicator_done(replicator) is an optional callback function
+-- that allows the caller to be called back when a replicator
+-- for one request is finished.
+--
 local function replicate_requests(request_to_replica_nodes,
                                   replica_min,
-                                  replica_sends_done)
+                                  replica_sends_done,
+                                  replicator_done)
   local request_to_replicator = {}
 
   for request, replica_nodes in pairs(request_to_replica_nodes) do
@@ -338,6 +350,7 @@ local function replicate_requests(request_to_replica_nodes,
   -- an error, do another round of replicator.send() of the request to a
   -- remaining replica, if any are left.
   --
+  local replicator_done_notified = {}
   local num_recv_needed
 
   repeat
@@ -346,6 +359,11 @@ local function replicate_requests(request_to_replica_nodes,
     for request, r in pairs(request_to_replicator) do
       if (r.received_ok + r.received_err) < #r.sent_ok then
         num_recv_needed = num_recv_needed + 1
+      else
+        if replicator_done and not replicator_done_notified[r] then
+          replicator_done_notified[r] = true
+          replicator_done(r)
+        end
       end
     end
 
@@ -388,5 +406,6 @@ return {
   replicate_requests         = replicate_requests,
   replicate_retrieval        = replicate_retrieval,
   replicate_retrieval_repair = replicate_retrieval_repair,
-  replicate_update           = replicate_update
+  replicate_update           = replicate_update,
+  best_node_response         = best_node_response
 }
