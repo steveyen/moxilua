@@ -54,18 +54,18 @@ local function create_replicator(success_msg, cmd_policy)
           local downstream = downstreams[j]
           if downstream and
              downstream.addr then
-            if msa.proxy_a2x[downstream.kind](downstream, skt,
-                                              cmd, msg,
-                                              first_response_filter) then
+            if msa.proxy_a2x.forward(downstream, skt,
+                                     cmd, msg,
+                                     first_response_filter) then
               n = n + 1
             end
           end
         end
       else
         pool.each(function(downstream)
-                    if msa.proxy_a2x[downstream.kind](downstream, skt,
-                                                      cmd, msg,
-                                                      first_response_filter) then
+                    if msa.proxy_a2x.forward(downstream, skt,
+                                             cmd, msg,
+                                             first_response_filter) then
                       n = n + 1
                     end
                   end)
@@ -209,9 +209,9 @@ local function create_replication_spec(policy)
           --
           local n = 0
           for downstream, downstream_keys in pairs(groups) do
-            if msa.proxy_a2x[downstream.kind](downstream, skt,
-                                              "get", { keys = downstream_keys },
-                                              filter_need) then
+            if msa.proxy_a2x.forward(downstream, skt,
+                                     "get", { keys = downstream_keys },
+                                     filter_need) then
               n = n + 1
             end
           end

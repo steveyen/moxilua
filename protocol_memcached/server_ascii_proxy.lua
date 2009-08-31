@@ -11,8 +11,10 @@ binary_success[mpb.command.SET]    = "STORED\r\n"
 binary_success[mpb.command.NOOP]   = "END\r\n"
 binary_success[mpb.command.DELETE] = "DELETED\r\n"
 
-local a2x = {
-  ascii = -- Downstream is ascii.
+local a2x -- Means ascii upstream to variable downstream.
+
+a2x = {
+  forward =
     function(downstream, skt, cmd, args, response_filter)
       -- The args looks like { keys = { "a", "b", "c", ... } }
       -- or like { key = "a", flag = 0, expire = 0, data = "hello" }
@@ -20,11 +22,7 @@ local a2x = {
       local function response(head, body)
         if (not response_filter) or
            response_filter(head, body) then
-          return skt and
-                 (head and
-                  sock_send(skt, head .. "\r\n")) and
-                 ((not body) or
-                  sock_send(skt, body.data .. "\r\n"))
+          return a2x.send_response_from[downstream.kind](skt, head, body)
         end
 
         return true
@@ -35,55 +33,52 @@ local a2x = {
       apo.watch(downstream.addr, self_addr, false)
 
       apo.send_track(downstream.addr, self_addr, {}, "fwd", self_addr,
-                     response, memcached_client_ascii[cmd], args)
+                     response, memcached_client[downstream.kind][cmd], args)
 
       return true
     end,
 
-  binary = -- Downstream is binary.
-    function(downstream, skt, cmd, args, response_filter)
-      local function response(head, body)
-        if (not response_filter) or
-           response_filter(head, body) then
-          if skt then
-            if pack.status(head) == SUCCESS then
-              local opcode = pack.opcode(head, 'response')
-              if opcode == mpb.command.GETKQ or
-                 opcode == mpb.command.GETK then
-                return sock_send(skt, "VALUE " ..
-                                 body.key .. " 0 " ..
-                                 string.len(body.data) .. "\r\n" ..
-                                 body.data .. "\r\n")
-              end
+  -------------------------------------
 
-              if opcode == mpb.command.NOOP then
-                return sock_send(skt, "END\r\n")
-              end
+  send_response_from = {
+    ascii =
+      function(skt, head, body) -- Downstream is ascii.
+        return skt and
+               (head and
+                sock_send(skt, head .. "\r\n")) and
+               ((not body) or
+                sock_send(skt, body.data .. "\r\n"))
+      end,
 
-              local reply = binary_success[opcode]
-              if reply then
-                return sock_send(skt, reply)
-              end
-
-              return sock_send(skt, "OK\r\n")
+    binary =
+      function(skt, head, body) -- Downstream is binary.
+        if skt then
+          if pack.status(head) == SUCCESS then
+            local opcode = pack.opcode(head, 'response')
+            if opcode == mpb.command.GETKQ or
+              opcode == mpb.command.GETK then
+              return sock_send(skt, "VALUE " ..
+                               body.key .. " 0 " ..
+                               string.len(body.data) .. "\r\n" ..
+                               body.data .. "\r\n")
             end
 
-            return sock_send(skt, "ERROR " .. body.data .. "\r\n")
+            if opcode == mpb.command.NOOP then
+              return sock_send(skt, "END\r\n")
+            end
+
+            local reply = binary_success[opcode]
+            if reply then
+              return sock_send(skt, reply)
+            end
+
+            return sock_send(skt, "OK\r\n")
           end
+
+          return sock_send(skt, "ERROR " .. body.data .. "\r\n")
         end
-
-        return true
       end
-
-      local self_addr = apo.self_address()
-
-      apo.watch(downstream.addr, self_addr, false)
-
-      apo.send_track(downstream.addr, self_addr, {}, "fwd", self_addr,
-                     response, memcached_client_binary[cmd], args)
-
-      return true
-    end
+  }
 }
 
 -----------------------------------
@@ -107,12 +102,12 @@ local function forward_update(pool, skt, cmd, arr)
       local downstream = pool.choose(key)
       if downstream and
          downstream.addr then
-        if a2x[downstream.kind](downstream, skt, cmd, {
-                                  key    = key,
-                                  flag   = flag,
-                                  expire = expire,
-                                  data   = string.sub(data, 1, -3)
-                                }) then
+        if a2x.forward(downstream, skt, cmd, {
+                         key    = key,
+                         flag   = flag,
+                         expire = expire,
+                         data   = string.sub(data, 1, -3)
+                       }) then
           local ok, err = apo.recv()
           apo.unwatch(downstream.addr)
           if ok then
@@ -140,10 +135,10 @@ local function forward_arith(pool, skt, cmd, arr)
     local downstream = pool.choose(key)
     if downstream and
        downstream.addr then
-      if a2x[downstream.kind](downstream, skt, cmd, {
-                                key    = key,
-                                amount = amount
-                              }) then
+      if a2x.forward(downstream, skt, cmd, {
+                       key    = key,
+                       amount = amount
+                     }) then
         local ok, err = apo.recv()
         apo.unwatch(downstream.addr)
         if ok then
@@ -165,8 +160,8 @@ memcached_server_ascii_proxy = {
 
       local n = 0
       for downstream, keys in pairs(groups) do
-        if a2x[downstream.kind](downstream, skt,
-                                "get", { keys = keys }) then
+        if a2x.forward(downstream, skt,
+                       "get", { keys = keys }) then
           n = n + 1
         end
       end
@@ -200,8 +195,8 @@ memcached_server_ascii_proxy = {
         local downstream = pool.choose(key)
         if downstream and
            downstream.addr then
-          if a2x[downstream.kind](downstream, skt,
-                                  "delete", { key = key }) then
+          if a2x.forward(downstream, skt,
+                         "delete", { key = key }) then
             local ok, err = apo.recv()
             apo.unwatch(downstream.addr)
             if ok then
@@ -220,8 +215,8 @@ memcached_server_ascii_proxy = {
 
       pool.each(
         function(downstream)
-          if a2x[downstream.kind](downstream, false,
-                                  "flush_all", {}) then
+          if a2x.forward(downstream, false,
+                         "flush_all", {}) then
             n = n + 1
           end
         end)
