@@ -21,15 +21,14 @@ local function create_mbox(addr, coro)
   }
 end
 
+----------------------------------------
+
 local last_addr = 0
 
 -- Map actor addresses to actor coroutines and vice-versa.
 
 local map_addr_to_mbox = {} -- table, key'ed by addr.
 local map_coro_to_addr = {} -- table, key'ed by coro.
-
-local map_addr_to_watchers = {} -- table, key'ed by target addr, value is a
-                                -- table, key'ed by watcher addr.
 
 local envelopes = {}
 
@@ -103,6 +102,7 @@ local function register(coro)
   local addr = next_address()
 
   map_addr_to_mbox[addr] = create_mbox(addr, coro)
+  map_coro_to_addr[coro] = addr
 
   return addr
 end
@@ -197,10 +197,10 @@ local function deliver_envelope(envelope)
       if coro then
         if not resume(coro, unpack(envelope.dest_msg or {})) then
           finish(envelope.dest_addr)
-
-          return true
         end
       end
+
+      return true
     end
 
     -- The destination coro is gone, probably finished already,

@@ -10,18 +10,24 @@ local writing = {} -- Array of sockets for next select().
 local reverse_r = {} -- Reverse lookup from socket to reading/writing index.
 local reverse_w = {} -- Reverse lookup from socket to reading/writing index.
 
-local waiting_actors = {} -- Keyed by socket, value is actor addr.
+local waiting_actor = {} -- Keyed by socket, value is actor addr.
 
 ------------------------------------------
 
 local function skt_unwait(skt, sockets, reverse)
-  waiting_actors[skt] = nil
+  waiting_actor[skt] = nil
+
   local cur = reverse[skt]
   if cur then
     reverse[skt] = nil
+
     local num = #sockets
     local top = sockets[num]
+
+    assert(cur >= 1 and cur <= num)
+
     sockets[num] = nil
+
     if cur < num then
       sockets[cur] = top
       reverse[top] = cur
@@ -30,18 +36,20 @@ local function skt_unwait(skt, sockets, reverse)
 end
 
 local function skt_wait(skt, sockets, reverse, actor_addr)
-  assert(not waiting_actors[skt])
+  assert(not waiting_actor[skt])
   assert(not reverse[skt])
 
-  waiting_actors[skt] = actor_addr
-  sockets[#sockets + 1] = skt
+  waiting_actor[skt] = actor_addr
+  table.insert(sockets, skt)
   reverse[skt] = #sockets
 end
 
 ------------------------------------------
 
 local function awake_actor(skt)
-  local actor_addr = waiting_actors[skt]
+  assert(skt)
+
+  local actor_addr = waiting_actor[skt]
 
   skt_unwait(skt, reading, reverse_r)
   skt_unwait(skt, writing, reverse_w)
