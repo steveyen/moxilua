@@ -105,7 +105,7 @@ local function replicate_request(request,
   --
   while (s.received_ok + s.received_err) < #s.sent_ok do
     local ok, err, replicator = apo.recv()
-    if replicator == s then
+    if assert(replicator == s) then
       if ok then
         s.received_ok = s.received_ok + 1
       else
@@ -113,8 +113,6 @@ local function replicate_request(request,
 
         s.send()
       end
-    else
-      -- TODO: Bad situation when replicator != s.
     end
   end
 
@@ -215,7 +213,8 @@ local function replicate_update(request,
     -- but kick off quiet, asynchronous updates to the rest of the
     -- replicas.
     --
-    -- TODO: Still need to handle the replicas that were down, too.
+    -- TODO: Optimization to handle the replicas that were down, too,
+    -- or else they'll be handled by "read repair".
     --
     for i = state.replica_next, #replica_nodes do
       local replica_node = replica_nodes[i]
@@ -224,6 +223,9 @@ local function replicate_update(request,
     end
   end
 
+  -- TODO: If we couldn't meet the replica_min quorum, should we
+  -- initiate asynchronous "read repair" right now?
+  --
   return ok, err, state
 end
 
