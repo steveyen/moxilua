@@ -127,11 +127,11 @@ end
 
 -- Lowest-level asynchronous send of a message.
 --
-local function send_msg(dest_addr, dest_msg, track_addr, track_msg)
+local function send_msg(dest_addr, dest_msg, track_addr, track_args)
   table.insert(envelopes, { dest_addr  = dest_addr,
                             dest_msg   = dest_msg,
                             track_addr = track_addr,
-                            track_msg  = track_msg})
+                            track_args = track_args })
 end
 
 ----------------------------------------
@@ -169,7 +169,7 @@ local function deliver_envelope(envelope)
       -- so send the tracking address a notification message.
       --
       if envelope.track_addr then
-        send_msg(envelope.track_addr, envelope.track_msg)
+        send_msg(envelope.track_addr, envelope.track_args)
       end
     end
 
@@ -227,13 +227,13 @@ end
 
 -- Asynchronous send of variable args as a message, similar to send(),
 -- except a tracking address and message can be supplied.  The
--- tracking address will be notified with the track_msg if there are
--- problems sending the message to the dest_addr, such as if the
--- destination address does not represent a live actor.
+-- tracking address will be notified with the unpacked track_args if
+-- there are problems sending the message to the dest_addr, such as if
+-- the destination address does not represent a live actor.
 --
-local function send_track(dest_addr, track_addr, track_msg, ...)
+local function send_track(dest_addr, track_addr, track_args, ...)
   if dest_addr then
-    send_msg(dest_addr, arg, track_addr, track_msg)
+    send_msg(dest_addr, arg, track_addr, track_args)
   end
 
   loop_until_empty()
