@@ -6,6 +6,28 @@ local SUCCESS = mpb.response_stats.SUCCESS
 
 require('test_base')
 
+-- Function that wraps a downstream with a wrn-friendly node interface.
+--
+local function wrap_downstream(downstream, cmd)
+  return {
+    downstream = downstream,
+
+    send =
+      function(self, node_request, node_response_filter, notify_data)
+        return msa.proxy_a2x.forward(downstream, false,
+                                     cmd, node_request,
+                                     node_response_filter,
+                                     notify_data)
+      end,
+
+    sendq =
+      function(self, node_request)
+        return msa.proxy_a2x.forward(downstream, false,
+                                     cmd, node_request)
+      end
+  }
+end
+
 -- Creates a function that replicates a simple, single-response ascii
 -- memcached request using the W+R>N approach.  The W value is from
 -- the cmd_policy.min_ok_writes value, defaults to 1.  The N value is
@@ -15,31 +37,7 @@ local function create_simple_replicator(success_msg, cmd_policy)
   cmd_policy = cmd_policy or {}
 
   return function(pool, skt, cmd, msg)
-    -- Function that wraps a downstream with a wrn-friendly node interface.
-    --
-    local function wrap_downstream(downstream)
-      return {
-        downstream = downstream,
-
-        send =
-          function(self, node_request, node_response_filter, notify_data)
-            assert(msg == node_request)
-            return msa.proxy_a2x.forward(downstream, skt,
-                                         cmd, msg,
-                                         node_response_filter,
-                                         notify_data)
-          end,
-
-        sendq =
-          function(self, node_request)
-            assert(msg == node_request)
-            return msa.proxy_a2x.forward(downstream, false,
-                                         cmd, msg)
-          end
-      }
-    end
-
-    -- Wrap relevant downstreams into nodes.
+    -- Wrap relevant downstreams into wrn-friendly nodes.
     --
     local nodes = {}
 
@@ -47,11 +45,11 @@ local function create_simple_replicator(success_msg, cmd_policy)
       local downstreams = pool.choose_many(msg.key,
                                            cmd_policy.num_replicas or 1)
       for j = 1, #downstreams do
-        nodes[#nodes + 1] = wrap_downstream(downstreams[j])
+        nodes[#nodes + 1] = wrap_downstream(downstreams[j], cmd)
       end
     else
       pool.each(function(downstream)
-                  nodes[#nodes + 1] = wrap_downstream(downstream)
+                  nodes[#nodes + 1] = wrap_downstream(downstream, cmd)
                 end)
     end
 
@@ -147,62 +145,110 @@ end
 
 ------------------------------------------------------
 
+local function create_multiget_replicator(cmd_policy)
+  cmd_policy = cmd_policy or {}
+
+  return function(pool, skt, cmd, arr)
+    local keys = arr -- The keys might have duplicates.
+
+    -- Wraps a downstream with a wrn-friendly node interface.
+    --
+    local function wrap_downstream_for_get(downstream)
+      return {
+        downstream = downstream,
+
+        send =
+          function(self, key, node_response_filter, notify_data)
+            print("cmgr.send", cmd, key)
+            return msa.proxy_a2x.forward(downstream, false,
+                                         cmd, { keys = { key } },
+                                         node_response_filter,
+                                         notify_data)
+          end,
+
+        sendq =
+          function(self, key)
+            print("cmgr.sendq", cmd, key)
+            return msa.proxy_a2x.forward(downstream, false,
+                                         cmd, { keys = { key } })
+          end
+      }
+    end
+
+    local function sends_done()
+      print("sends_done")
+    end
+
+    local key_to_nodes = {}
+
+    for i = 1, #keys do
+      local key = keys[i]
+
+      -- De-duplicate keys here.
+      --
+      if not key_to_nodes[key] then
+        -- Find the downstreams for a key, in priority order.
+        --
+        local downstreams = pool.choose_many(key,
+                                             cmd_policy.num_replicas or 1)
+
+        -- Wrap the downstreams as wrn-friendly nodes.
+        --
+        local nodes = {}
+        for j = 1, #downstreams do
+          nodes[#nodes + 1] = wrap_downstream_for_get(downstreams[j])
+        end
+
+        key_to_nodes[key] = nodes
+      end
+    end
+
+    print("multiget", "rr beg")
+
+    local ok, err, key_to_replicator =
+      wrn.replicate_requests(key_to_nodes,
+                             cmd_policy.min_ok_reads or 1,
+                             sends_done)
+
+    print("multiget", "rr end", ok, err)
+
+    if ok then
+      for key, replicator in pairs(key_to_replicator) do
+        local best_response, best_node =
+          wrn.best_node_response(replicator.responses,
+                                 function() return 1 end)
+
+        if best_response and best_node then
+          local sender =
+            msa.proxy_a2x.send_response_from[best_node.downstream.kind]
+
+          if not sender(skt, cmd, arr,
+                        best_response.head, best_response.body) then
+            break
+          end
+        end
+      end
+    end
+
+    print("multiget", "rr fin")
+
+    pool.each(
+      function(downstream)
+        apo.unwatch(downstream.addr)
+      end)
+
+    return sock_send(skt, "END\r\n")
+  end
+end
+
+------------------------------------------------------
+
 local function create_replication_spec(policy)
   policy = policy or {}
 
   return {
     get =
-      function(pool, skt, cmd, arr)
-        local keys = arr -- The keys might have duplicates.
-        local need = {}  -- Key'ed by string, value is integer count.
-        for i = 1, #keys do
-          need[keys[i]] = (need[keys[i]] or 0) + 1
-        end
-
-        -- A response filter function that tracks the number
-        -- of responses needed per key, decrementing the counts
-        -- the in the need table.
-        --
-        local function filter_need(head, body)
-          local vfound, vlast, key = string.find(head, "^VALUE (%S+)")
-          if vfound and key then
-            local count = need[key]
-            if count then
-              count = count - 1
-              if count <= 0 then
-                count = nil
-              end
-              need[key] = count
-              return true
-            end
-          end
-          return false
-        end
-
-        local groups = group_by(keys, pool.choose)
-
-        -- Broadcast multi-get requests to the downstream servers
-        -- in a single pool.
-        --
-        local n = 0
-        for downstream, downstream_keys in pairs(groups) do
-          if msa.proxy_a2x.forward(downstream, skt,
-                                   "get", { keys = downstream_keys },
-                                   filter_need) then
-            n = n + 1
-          end
-        end
-
-        local oks = 0
-        for i = 1, n do
-          if apo.recv() then
-            oks = oks + 1
-          end
-        end
-
-        return sock_send(skt, "END\r\n")
-      end,
-
+      create_multiget_replicator(policy.get),
     set =
       create_update_replicator("STORED\r\n", policy.set),
     add =
