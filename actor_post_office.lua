@@ -152,11 +152,15 @@ end
 
 -- Lowest-level asynchronous send of a message.
 --
+local function send_envelope(envelope)
+  table.insert(envelopes, envelope)
+end
+
 local function send_msg(dest_addr, dest_msg, track_addr, track_args)
-  table.insert(envelopes, { dest_addr  = dest_addr,
-                            dest_msg   = dest_msg,
-                            track_addr = track_addr,
-                            track_args = track_args })
+  send_envelope({ dest_addr  = dest_addr,
+                  dest_msg   = dest_msg,
+                  track_addr = track_addr,
+                  track_args = track_args })
 end
 
 ----------------------------------------
@@ -193,9 +197,20 @@ local function deliver_envelope(envelope)
      envelope.dest_addr then
     local mbox = map_addr_to_mbox[envelope.dest_addr]
     if mbox then
+      local dest_msg = envelope.dest_msg or {}
+
+      if mbox.filter and not mbox.filter(unpack(dest_msg)) then
+        send_envelope(envelope)
+
+        -- Even though the envelope was re-sent/re-queued,
+        -- tell our caller we made some progress.
+        --
+        return true
+      end
+
       local coro = mbox.coro
       if coro then
-        if not resume(coro, unpack(envelope.dest_msg or {})) then
+        if not resume(coro, unpack(dest_msg)) then
           finish(envelope.dest_addr)
         end
       end
@@ -229,13 +244,37 @@ local function step()
   return deliver_envelope(table.remove(envelopes, 1))
 end
 
-local function loop_until_empty(force)
+----------------------------------------
+
+-- Process all the current envelopes, but not any new ones
+-- that appeared during processing.
+--
+local function loop_current(force)
   -- Check first if we're the main thread.
   --
   if (coroutine.running() == nil) or force then
+    -- Keep counter to prevent re-queuing infinite loops.
+    --
+    local n = #envelopes
     local go = true
-    while go do
+    while go and n > 0 do
       go = step()
+
+      n = n - 1
+    end
+
+    return #envelopes > 0 -- Return true more envelopes appeared.
+  end
+
+  return false -- Return false as no envelopes remain.
+end
+
+----------------------------------------
+
+local function loop_until_empty(force)
+  while true do
+    if not loop_current(force) then
+      break
     end
   end
 end
@@ -281,8 +320,19 @@ local function send_track(dest_addr, track_addr, track_args, ...)
   loop_until_empty()
 end
 
-local function recv()
-  if coroutine.running() then
+-- Receive a message (via multi-return-values).
+--
+-- An optional opt_filter(...) function can be supplied so that the
+-- actor only accepts certain messages, when the opt_filter(...)
+-- returns true.
+--
+local function recv(opt_filter)
+  local coro = coroutine.running()
+  if coro then
+    -- The opt_filter might be nil, which is fine.
+    --
+    map_addr_to_mbox[coroutine_address(coro)].filter = opt_filter
+
     return coroutine.yield()
   end
 
@@ -385,7 +435,6 @@ return {
   send       = send,
   send_later = send_later,
   send_track = send_track,
-  step       = step,
   spawn      = spawn,
   spawn_with = spawn_with,
   user_data  = user_data,
@@ -397,10 +446,17 @@ return {
   register          = register,
   unregister        = unregister,
   is_registered     = is_registered,
+
+  --------------------------------
+
   coroutine_address = coroutine_address,
   address_coroutine = address_coroutine,
   self_address      = self_address,
-  loop_until_empty  = loop_until_empty
+
+  --------------------------------
+
+  step             = step,
+  loop_until_empty = loop_until_empty
 }
 
 end
