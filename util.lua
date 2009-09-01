@@ -148,7 +148,7 @@ end
 function trace(f, name)
   name = name or tostring(f)
   local helper = function(...)
-    print("-" .. name)
+    print("-" .. name, ...)
     return ...
   end
   return function(...)
@@ -157,10 +157,14 @@ function trace(f, name)
   end
 end
 
-function trace_table(t)
+function trace_table(t, prefix)
   for name, f in pairs(t) do
     if type(f) == 'function' then
-      t[name] = trace(f, name)
+      local namex = name
+      if prefix then
+        namex = prefix .. '.' .. namex
+      end
+      t[name] = trace(f, namex)
     end
   end
 end
