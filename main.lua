@@ -17,6 +17,9 @@ require('protocol_memcached/server_replication')
 require('protocol_memcached/server_replication_wrn')
 require('protocol_memcached/pool')
 
+-- trace_table(apo)
+-- trace_table(asock)
+
 print("start")
 
 ----------------------------------------
