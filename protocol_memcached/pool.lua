@@ -4,7 +4,7 @@
 local function spawn_downstream(location, done_func)
   local host, port, dconn, err = connect(location)
 
-  return apo.spawn(
+  return apo.spawn_name(
     function(self_addr)
       while dconn do
         local what, notify_addr, response, handler, args, notify_data = apo.recv()
@@ -31,7 +31,8 @@ local function spawn_downstream(location, done_func)
       end
 
       done_func(self_addr)
-    end
+    end,
+    "downstream"
   )
 end
 
