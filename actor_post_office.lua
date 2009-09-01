@@ -92,6 +92,7 @@ local function unregister(addr)
     local mbox = map_addr_to_mbox[addr]
     if mbox then
       map_addr_to_mbox[addr] = nil
+      map_coro_to_addr[mbox.coro] = nil
     end
   end
 end
@@ -152,15 +153,11 @@ end
 
 -- Lowest-level asynchronous send of a message.
 --
-local function send_envelope(envelope)
-  table.insert(envelopes, envelope)
-end
-
 local function send_msg(dest_addr, dest_msg, track_addr, track_args)
-  send_envelope({ dest_addr  = dest_addr,
-                  dest_msg   = dest_msg,
-                  track_addr = track_addr,
-                  track_args = track_args })
+  table.insert(envelopes, { dest_addr  = dest_addr,
+                            dest_msg   = dest_msg,
+                            track_addr = track_addr,
+                            track_args = track_args })
 end
 
 ----------------------------------------
