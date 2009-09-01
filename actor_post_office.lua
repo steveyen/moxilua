@@ -47,6 +47,8 @@ local function run_main_todos(force)
       end
     until todo == nil
   end
+
+  return true
 end
 
 ----------------------------------------
@@ -97,10 +99,14 @@ local function unregister(addr)
   end
 end
 
-local function register(coro)
+local function register(coro, opt_suffix)
   unregister(map_coro_to_addr[coro])
 
   local addr = next_address()
+
+  if opt_suffix then
+    addr = addr .. "." .. opt_suffix
+  end
 
   map_addr_to_mbox[addr] = create_mbox(addr, coro)
   map_coro_to_addr[coro] = addr
@@ -230,9 +236,8 @@ local function loop_until_empty(force)
   if (coroutine.running() == nil) or force then
     local resends = {}
 
-    while #envelopes > 0 do
-      run_main_todos()
-
+    while run_main_todos() and
+          (#envelopes > 0) do
       local resend = deliver_envelope(table.remove(envelopes, 1))
       if resend then
         table.insert(resends, resend)
@@ -307,7 +312,7 @@ end
 
 ----------------------------------------
 
-local function spawn_with(spawner, f, ...)
+local function spawn_with(spawner, f, suffix, ...)
   local child_coro = nil
   local child_addr = nil
   local child_arg = arg
@@ -321,7 +326,7 @@ local function spawn_with(spawner, f, ...)
     end
 
   child_coro = spawner(child_fun)
-  child_addr = register(child_coro)
+  child_addr = register(child_coro, suffix)
 
   table.insert(main_todos,
     function()
@@ -336,7 +341,11 @@ local function spawn_with(spawner, f, ...)
 end
 
 local function spawn(f, ...)
-  return spawn_with(coroutine.create, f, ...)
+  return spawn_with(coroutine.create, f, nil, ...)
+end
+
+local function spawn_name(f, name, ...)
+  return spawn_with(coroutine.create, f, name, ...)
 end
 
 ----------------------------------------
@@ -402,6 +411,7 @@ return {
   send_later = send_later,
   send_track = send_track,
   spawn      = spawn,
+  spawn_name = spawn_name,
   spawn_with = spawn_with,
   user_data  = user_data,
   watch      = watch,
