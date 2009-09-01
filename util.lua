@@ -38,7 +38,7 @@ function upstream_accept(self_addr, server_skt, sess_actor, env)
   local session_handler = function(upstream_skt)
     upstream_skt:settimeout(0)
 
-    apo.spawn(sess_actor, env, upstream_skt)
+    apo.spawn_name(sess_actor, "upstream_session", env, upstream_skt)
   end
 
   asock.loop_accept(self_addr, server_skt, session_handler)
@@ -139,6 +139,30 @@ function iter_array(itr)
     a[#a + 1] = v
   end
   return a
+end
+
+-- Trace a function with an optional name.
+--
+-- CPS-style from http://lua-users.org.
+--
+function trace(f, name)
+  name = name or tostring(f)
+  local helper = function(...)
+    print("-" .. name)
+    return ...
+  end
+  return function(...)
+    print("+" .. name, ...)
+    return helper(f(...))
+  end
+end
+
+function trace_table(t)
+  for name, f in pairs(t) do
+    if type(f) == 'function' then
+      t[name] = trace(f, name)
+    end
+  end
 end
 
 ------------------------------------------------------
