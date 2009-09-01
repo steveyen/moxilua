@@ -200,84 +200,53 @@ local function deliver_envelope(envelope)
       local dest_msg = envelope.dest_msg or {}
 
       if mbox.filter and not mbox.filter(unpack(dest_msg)) then
-        send_envelope(envelope)
-
-        -- Even though the envelope was re-sent/re-queued,
-        -- tell our caller we made some progress.
+        -- Tell our caller to re-send/re-queue the envelope.
         --
-        return true
+        return envelope
       end
 
-      local coro = mbox.coro
-      if coro then
-        if not resume(coro, unpack(dest_msg)) then
-          finish(envelope.dest_addr)
-        end
+      if not resume(mbox.coro, unpack(dest_msg)) then
+        finish(envelope.dest_addr)
       end
-
-      return true
+    else
+      -- The destination mbox/coro is gone, probably finished already,
+      -- so send the tracking address a notification message.
+      --
+      -- We're careful here that there's either a track notification
+      -- or a watcher notification (via finish() above), but not both.
+      --
+      if envelope.track_addr then
+        send_msg(envelope.track_addr, envelope.track_args)
+      end
     end
-
-    -- The destination coro is gone, probably finished already,
-    -- so send the tracking address a notification message.
-    --
-    -- We're careful here that there's either a track notification
-    -- or a watcher notification (via finish() above), but not both.
-    --
-    if envelope.track_addr then
-      send_msg(envelope.track_addr, envelope.track_args)
-    end
-
-    return true
   end
-
-  return false
 end
 
 ----------------------------------------
 
-local function step()
-  -- Must be invoked on main thread.
-  --
-  run_main_todos()
-
-  return deliver_envelope(table.remove(envelopes, 1))
-end
-
-----------------------------------------
-
--- Process all the current envelopes, but not any new ones
--- that appeared during processing.
+-- Process all envelopes, requeuing any envelopes that did not
+-- pass their mbox.filter and which need resending.
 --
-local function loop_current(force)
+local function loop_until_empty(force)
   -- Check first if we're the main thread.
   --
   if (coroutine.running() == nil) or force then
-    -- Keep counter to prevent re-queuing infinite loops.
-    --
-    local n = #envelopes
-    local go = true
-    while go and n > 0 do
-      go = step()
+    local resends = {}
 
-      n = n - 1
+    while #envelopes > 0 do
+      run_main_todos()
+
+      local resend = deliver_envelope(table.remove(envelopes, 1))
+      if resend then
+        table.insert(resends, resend)
+      end
     end
 
-    return #envelopes > 0 -- Return true more envelopes appeared.
+    envelopes = resends
   end
-
-  return false -- Return false as no envelopes remain.
 end
 
 ----------------------------------------
-
-local function loop_until_empty(force)
-  while true do
-    if not loop_current(force) then
-      break
-    end
-  end
-end
 
 local function loop()
   while true do
@@ -455,7 +424,6 @@ return {
 
   --------------------------------
 
-  step             = step,
   loop_until_empty = loop_until_empty
 }
 
