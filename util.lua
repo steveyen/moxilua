@@ -141,6 +141,8 @@ function iter_array(itr)
   return a
 end
 
+------------------------------------------------------
+
 -- Trace a function with an optional name.
 --
 -- CPS-style from http://lua-users.org.
@@ -153,18 +155,27 @@ function trace(f, name)
   end
   return function(...)
     print("+" .. name, ...)
+
+    local coro = coroutine.running()
+    if coro then
+      print(debug.traceback(coro))
+    end
+
     return helper(f(...))
   end
 end
 
-function trace_table(t, prefix)
+function trace_table(t, prefix, except)
+  except = except or {}
   for name, f in pairs(t) do
-    if type(f) == 'function' then
-      local namex = name
-      if prefix then
-        namex = prefix .. '.' .. namex
+    if not except[name] then
+      if type(f) == 'function' then
+        local namex = name
+        if prefix then
+          namex = prefix .. '.' .. namex
+        end
+        t[name] = trace(f, namex)
       end
-      t[name] = trace(f, namex)
     end
   end
 end
