@@ -55,7 +55,7 @@ local function awake_actor(skt)
   skt_unwait(skt, writing, reverse_w)
 
   if actor_addr then
-    apo.send_later(actor_addr, skt)
+    apo.send_later(actor_addr, "skt", skt)
   end
 end
 
@@ -84,6 +84,14 @@ end
 
 ------------------------------------------
 
+-- A filter for apo.recv(), where we only want awake_actor() calls.
+--
+local function filter_skt(s, skt)
+  return (s == "skt") and skt
+end
+
+------------------------------------------
+
 local function recv(actor_addr, skt, pattern, part)
   local s, err
 
@@ -98,7 +106,8 @@ local function recv(actor_addr, skt, pattern, part)
 
     skt_wait(skt, reading, reverse_r, actor_addr)
 
-    assert(skt == coroutine.yield())
+    s, skt_recv = apo.recv(filter_skt)
+    assert(skt == skt_recv)
   until false
 end
 
@@ -117,7 +126,8 @@ local function send(actor_addr, skt, data, from, to)
 
     skt_wait(skt, writing, reverse_w, actor_addr)
 
-    assert(skt == coroutine.yield())
+    s, skt_recv = apo.recv(filter_skt)
+    assert(skt == skt_recv)
   until false
 end
 
@@ -135,7 +145,8 @@ local function loop_accept(actor_addr, skt, handler, timeout)
 
     skt_wait(skt, reading, reverse_r, actor_addr)
 
-    assert(skt == coroutine.yield())
+    s, skt_recv = apo.recv(filter_skt)
+    assert(skt == skt_recv)
   until false
 end
 
