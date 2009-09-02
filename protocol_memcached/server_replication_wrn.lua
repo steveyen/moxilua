@@ -159,7 +159,6 @@ local function create_multiget_replicator(cmd_policy)
 
         send =
           function(self, key, node_response_filter, notify_data)
-            print("cmgr.send", cmd, key)
             return msa.proxy_a2x.forward(downstream, false,
                                          cmd, { keys = { key } },
                                          node_response_filter,
@@ -168,7 +167,6 @@ local function create_multiget_replicator(cmd_policy)
 
         sendq =
           function(self, key)
-            print("cmgr.sendq", cmd, key)
             return msa.proxy_a2x.forward(downstream, false,
                                          cmd, { keys = { key } })
           end
@@ -176,7 +174,6 @@ local function create_multiget_replicator(cmd_policy)
     end
 
     local function sends_done()
-      print("sends_done")
     end
 
     local key_to_nodes = {}
@@ -203,34 +200,33 @@ local function create_multiget_replicator(cmd_policy)
       end
     end
 
-    print("multiget", "rr beg")
-
     local ok, err, key_to_replicator =
       wrn.replicate_requests(key_to_nodes,
                              cmd_policy.min_ok_reads or 1,
                              sends_done)
 
-    print("multiget", "rr end", ok, err)
-
     if ok then
-      for key, replicator in pairs(key_to_replicator) do
-        local best_response, best_node =
-          wrn.best_node_response(replicator.responses,
-                                 function() return 1 end)
+      for i = 1, #keys do
+        local key = keys[i]
 
-        if best_response and best_node then
-          local sender =
-            msa.proxy_a2x.send_response_from[best_node.downstream.kind]
+        local replicator = key_to_replicator[key]
+        if replicator then
+          local best_response, best_node =
+            wrn.best_node_response(replicator.responses,
+                                   function() return 1 end)
 
-          if not sender(skt, cmd, arr,
-                        best_response.head, best_response.body) then
-            break
+          if best_response and best_node then
+            local sender =
+              msa.proxy_a2x.send_response_from[best_node.downstream.kind]
+
+            if not sender(skt, cmd, arr,
+                          best_response.head, best_response.body) then
+              break
+            end
           end
         end
       end
     end
-
-    print("multiget", "rr fin")
 
     pool.each(
       function(downstream)
