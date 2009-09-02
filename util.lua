@@ -2,7 +2,6 @@
 --
 if _G.sock_recv == nil and
    _G.sock_send == nil and
-   _G.sock_send_recv == nil and
    _G.asock then
   function sock_recv(skt, pattern)
     return asock.recv(apo.self_address(), skt, pattern)
@@ -10,25 +9,6 @@ if _G.sock_recv == nil and
 
   function sock_send(skt, data, from, to)
     return asock.send(apo.self_address(), skt, data, from, to)
-  end
-
-  function asock_send_recv(self_addr, skt, msg, recv_callback, pattern)
-    local ok, err = asock.send(self_addr, skt, msg)
-    if not ok then
-      return ok, err
-    end
-
-    local rv, err = asock.recv(self_addr, skt, pattern or "*l")
-    if rv and recv_callback then
-      recv_callback(rv)
-    end
-
-    return rv, err
-  end
-
-  function sock_send_recv(skt, data, recv_callback, pattern)
-    return asock_send_recv(apo.self_address(),
-                           skt, data, recv_callback, pattern)
   end
 end
 

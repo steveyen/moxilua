@@ -23,8 +23,7 @@ memcached_client = {
 -- the "socket = require('socket')".
 --
 if _G.sock_recv == nil and
-   _G.sock_send == nil and
-   _G.sock_send_recv == nil then
+   _G.sock_send == nil then
   sock_recv = function(skt, pattern)
     return skt:receive(pattern or "*l")
   end
@@ -32,7 +31,9 @@ if _G.sock_recv == nil and
   sock_send = function(skt, data, from, to)
     return skt:send(data, from, to)
   end
+end
 
+if _G.sock_send_recv == nil then
   sock_send_recv = function(skt, data, recv_callback, pattern)
     local ok, err = sock_send(skt, data)
     if not ok then
