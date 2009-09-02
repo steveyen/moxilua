@@ -11,26 +11,31 @@ require "xavante.redirecthandler"
 --
 -- require "xavante.cgiluahandler"
 
-require 'protocol_http/proxyhandler'
+require 'protocol_http/proxy_server'
 
 -- Define here where Xavante HTTP documents scripts are located
 local webDir = "/tmp"
 
 local simplerules = {
-    { -- URI remapping example
-      match = "^[^%./]*/$",
-      with = xavante.redirecthandler,
-      params = { "index.lp" }
-    },
+--    { -- URI remapping example
+--      match = "^[^%./]*/$",
+--      with = xavante.redirecthandler,
+--      params = { "index.lp" }
+--    },
 
 --    { -- cgiluahandler example
 --      match = {"%.lp$", "%.lp/.*$", "%.lua$", "%.lua/.*$" },
 --      with = xavante.cgiluahandler.makeHandler(webDir)
 --    },
 
-    { -- filehandler example
+--    { -- filehandler example
+--      match = ".",
+--      with = xavante.filehandler,
+--      params = { baseDir = webDir }
+--    },
+
+    { -- proxy handler example
       match = ".",
-      -- with = xavante.filehandler,
       with = xavante.http_proxy_handler,
       params = { baseDir = webDir }
     }

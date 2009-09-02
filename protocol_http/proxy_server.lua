@@ -4,15 +4,16 @@ local url  = require "socket.url"
 require 'xavante'
 
 local function handler(req, res, baseDir)
-  if req.cmd_mth ~= "GET" and req.cmd_mth ~= "HEAD" then
+  if req.cmd_mth ~= "GET" and
+     req.cmd_mth ~= "HEAD" then
     return xavante.httpd.err_405(req, res)
   end
 
   baseDir = "http://www.google.com"
 
-  local url = baseDir .."/".. req.relpath
+  local url = baseDir .. req.relpath
 
-  url = "http://www.cs.princeton.edu/~diego/professional/luasocket/http.html"
+  print("url", url)
 
   local t = {}
 
@@ -29,7 +30,7 @@ local function handler(req, res, baseDir)
 
   for key, value in pairs(headers) do
     print("header", key, value)
-    res.headers[key] = value
+    -- res.headers[key] = value
   end
 
   -- res.headers["Content-Length"] = attr.size
@@ -60,6 +61,8 @@ local function handler(req, res, baseDir)
 
   for i = 1, #t do
     res:send_data(t[i])
+    print("-------------------- " .. i)
+    print(t[i])
   end
 
   return res
