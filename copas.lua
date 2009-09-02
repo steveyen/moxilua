@@ -16,7 +16,7 @@ require('util')
 --
 module("copas", package.seeall)
 
-print("fake copas")
+print("loaded apo-based copas.")
 
 function session_actor(self_addr, handler, skt)
   handler(skt)
