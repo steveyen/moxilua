@@ -108,7 +108,7 @@ local function recv(actor_addr, skt, pattern, part)
 
     skt_wait(skt, reading, reverse_r, actor_addr)
 
-    s, skt_recv = apo.recv(filter_skt)
+    local s, skt_recv = apo.recv(filter_skt)
     assert(skt == skt_recv)
   until false
 end
@@ -128,7 +128,7 @@ local function send(actor_addr, skt, data, from, to)
 
     skt_wait(skt, writing, reverse_w, actor_addr)
 
-    s, skt_recv = apo.recv(filter_skt)
+    local s, skt_recv = apo.recv(filter_skt)
     assert(skt == skt_recv)
   until false
 end
@@ -147,7 +147,7 @@ local function loop_accept(actor_addr, skt, handler, timeout)
 
     skt_wait(skt, reading, reverse_r, actor_addr)
 
-    s, skt_recv = apo.recv(filter_skt)
+    local s, skt_recv = apo.recv(filter_skt)
     assert(skt == skt_recv)
   until false
 end
