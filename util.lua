@@ -68,7 +68,7 @@ end
 --   c1, c2, c3 = close(c1, c2, c3)
 --
 local function close(...)
-  for i, skt in ipairs(arg) do
+  for i, skt in ipairs({ ... }) do
     skt:close()
   end
   return nil
