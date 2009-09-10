@@ -146,7 +146,11 @@ local function resume(coro, ...)
   if coro and coroutine.status(coro) ~= 'dead' then
     local ok = coroutine.resume(coro, ...)
     if not ok then
-      print(debug.traceback(coro))
+      -- When running on kahlua.
+      --
+      if _G.debug then
+        print(_G.debug.traceback(coro))
+      end
     end
 
     return ok
