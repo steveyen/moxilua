@@ -1,7 +1,7 @@
 socket = require('socket')
 
-apo   = require('actor_post_office')
-asock = require('actor_socket')
+ambox = require('ambox')
+asock = require('asock')
 
 require('util')
 
@@ -16,7 +16,7 @@ require('util')
 --
 module("copas", package.seeall)
 
-print("loaded apo-based copas.")
+print("loaded ambox-based copas.")
 
 function session_actor(self_addr, handler, skt)
   handler(skt)
@@ -25,11 +25,11 @@ end
 function addserver(server, handler, timeout)
   server:settimeout(timeout or 0.1)
 
-  apo.spawn(upstream_accept, server, session_actor, handler)
+  ambox.spawn(upstream_accept, server, session_actor, handler)
 end
 
 function step(timeout)
-  apo.loop_until_empty()
+  ambox.loop_until_empty()
   asock.step()
 end
 
@@ -45,12 +45,12 @@ local _skt_mt = {
   __index = {
     send =
       function(self, data, from, to)
-        return asock.send(apo.self_addr(), self.socket, data, from, to)
+        return asock.send(ambox.self_addr(), self.socket, data, from, to)
       end,
 
     receive =
       function(self, pattern)
-        return asock.recv(apo.self_addr(), self.socket, pattern)
+        return asock.recv(ambox.self_addr(), self.socket, pattern)
       end,
 
     flush =

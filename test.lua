@@ -1,4 +1,4 @@
-apo = require('actor_post_office')
+ambox = require('ambox')
 
 p = print
 
@@ -6,15 +6,15 @@ function a1(self_addr, a, b, c)
   print("a1", self_addr, a, b, c)
 
   while true do
-    x, y, z = apo.recv()
+    x, y, z = ambox.recv()
     p("a1 recv'ed ", x, y, z)
   end
 end
 
-a1_addr = apo.spawn(a1, 111, 222, 333)
+a1_addr = ambox.spawn(a1, 111, 222, 333)
 
-apo.send(a1_addr, 1, 2, 3)
-apo.send(a1_addr, 2, 3, 4)
+ambox.send(a1_addr, 1, 2, 3)
+ambox.send(a1_addr, 2, 3, 4)
 
 ------------------------------------------
 
@@ -22,14 +22,14 @@ function a2(self_addr)
   print("a2", self_addr)
 
   while true do
-    times = apo.recv()
+    times = ambox.recv()
 
     for i = 1, times do
-      apo.send(self_addr, -1)
+      ambox.send(self_addr, -1)
     end
 
     while times > 0 do
-      delta = apo.recv()
+      delta = ambox.recv()
       p("a2 countdown ", times)
       times = times + delta
     end
@@ -38,26 +38,26 @@ function a2(self_addr)
   end
 end
 
-a2_addr = apo.spawn(a2)
+a2_addr = ambox.spawn(a2)
 
-apo.send(a2_addr, 5)
+ambox.send(a2_addr, 5)
 
 ------------------------------------------
 
 function a3(self_addr)
   print("a3", self_addr)
 
-  times = apo.recv()
+  times = ambox.recv()
   p("a3 times", times)
-  apo.send(a2_addr, times)
+  ambox.send(a2_addr, times)
 
   a3(self_addr)
 end
 
-a3_addr = apo.spawn(a3)
+a3_addr = ambox.spawn(a3)
 
-apo.send(a3_addr, 5)
-apo.send(a3_addr, 6)
+ambox.send(a3_addr, 5)
+ambox.send(a3_addr, 6)
 
 ------------------------------------------
 
@@ -65,19 +65,19 @@ function a4(self_addr, name)
   print("a4", self_addr)
 
   while true do
-    times = apo.recv()
-    a4_child = apo.spawn(a3)
-    apo.send(a4_child, times)
+    times = ambox.recv()
+    a4_child = ambox.spawn(a3)
+    ambox.send(a4_child, times)
   end
 end
 
-a4_addr = apo.spawn(a4, "mary")
+a4_addr = ambox.spawn(a4, "mary")
 
-apo.send(a4_addr, 3)
-apo.send(a4_addr, 2)
+ambox.send(a4_addr, 3)
+ambox.send(a4_addr, 2)
 
 ------------------------------------------
 
-apo.loop_until_empty()
+ambox.loop_until_empty()
 
 p("DONE")

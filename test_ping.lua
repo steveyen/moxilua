@@ -1,15 +1,15 @@
-apo = require('actor_post_office')
+ambox = require('ambox')
 
 function player(self_addr, name)
   while true do
-    ball = apo.recv()
+    ball = ambox.recv()
     print(name .. " got ball, hits " .. ball.hits)
-    apo.send(ball.from, { from = self_addr, hits = ball.hits + 1 })
+    ambox.send(ball.from, { from = self_addr, hits = ball.hits + 1 })
   end
 end
 
-mike_addr = apo.spawn(player, "Mike")
-mary_addr = apo.spawn(player, "Mary")
+mike_addr = ambox.spawn(player, "Mike")
+mary_addr = ambox.spawn(player, "Mary")
 
-apo.send(mike_addr, { from = mary_addr, hits = 1})
+ambox.send(mike_addr, { from = mary_addr, hits = 1})
 

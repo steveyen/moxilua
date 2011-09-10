@@ -12,7 +12,7 @@ local sent_arr = {}
 local recv_calls = 0
 local recv_arr = {}
 
-apo = {
+ambox = {
   recv =
     function()
       recv_calls = recv_calls + 1
@@ -35,9 +35,9 @@ local function fresh()
   recv_arr = {}
 end
 
-local function node_send(self, request, filter, apo_reply_data)
-  assert(self and request and filter and apo_reply_data)
-  sent_arr[#sent_arr + 1] = { "send", self, request, filter, apo_reply_data }
+local function node_send(self, request, filter, ambox_reply_data)
+  assert(self and request and filter and ambox_reply_data)
+  sent_arr[#sent_arr + 1] = { "send", self, request, filter, ambox_reply_data }
   return self.ok
 end
 

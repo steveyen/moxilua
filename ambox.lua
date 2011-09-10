@@ -1,4 +1,4 @@
--- actor_post_office
+-- ambox - actor mailboxes
 --
 -- simple erlang-like, concurrent-lua-like system,
 -- enabling cooperative actor-like application programming.
@@ -8,7 +8,7 @@
 
 ----------------------------------------
 
-function actor_post_office_create()
+function ambox_create()
 
 local function create_mbox(addr, coro)
   return { -- A mailbox for an actor coroutine.
@@ -455,4 +455,4 @@ end
 
 ----------------------------------------
 
-return actor_post_office_create()
+return ambox_create()

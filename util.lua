@@ -4,11 +4,11 @@ if _G.sock_recv == nil and
    _G.sock_send == nil and
    _G.asock then
   function sock_recv(skt, pattern)
-    return asock.recv(apo.self_addr(), skt, pattern)
+    return asock.recv(ambox.self_addr(), skt, pattern)
   end
 
   function sock_send(skt, data, from, to)
-    return asock.send(apo.self_addr(), skt, data, from, to)
+    return asock.send(ambox.self_addr(), skt, data, from, to)
   end
 end
 
@@ -18,7 +18,7 @@ function upstream_accept(self_addr, server_skt, sess_actor, env)
   local session_handler = function(upstream_skt)
     upstream_skt:settimeout(0)
 
-    apo.spawn_name(sess_actor, "upstream_session", env, upstream_skt)
+    ambox.spawn_name(sess_actor, "upstream_session", env, upstream_skt)
   end
 
   asock.loop_accept(self_addr, server_skt, session_handler)

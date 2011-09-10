@@ -1,8 +1,8 @@
--- Integration of actor post office with sockets.
+-- Integration of ambox with sockets.
 --
 local socket = require("socket")
 
-function actor_socket_create()
+function asock_create()
 
 local reading = {} -- Array of sockets for next select().
 local writing = {} -- Array of sockets for next select().
@@ -57,7 +57,7 @@ local function awake_actor(skt)
   if actor_addr then
     assert(skt)
 
-    apo.send_later(actor_addr, "skt", skt)
+    ambox.send_later(actor_addr, "skt", skt)
   end
 end
 
@@ -86,7 +86,7 @@ end
 
 ------------------------------------------
 
--- A filter for apo.recv(), where we only want awake_actor() calls.
+-- A filter for ambox.recv(), where we only want awake_actor() calls.
 --
 local function filter_skt(s, skt)
   return (s == "skt") and skt
@@ -108,7 +108,7 @@ local function recv(actor_addr, skt, pattern, part)
 
     skt_wait(skt, reading, reverse_r, actor_addr)
 
-    local s, skt_recv = apo.recv(filter_skt)
+    local s, skt_recv = ambox.recv(filter_skt)
     assert(skt == skt_recv)
   until false
 end
@@ -128,7 +128,7 @@ local function send(actor_addr, skt, data, from, to)
 
     skt_wait(skt, writing, reverse_w, actor_addr)
 
-    local s, skt_recv = apo.recv(filter_skt)
+    local s, skt_recv = ambox.recv(filter_skt)
     assert(skt == skt_recv)
   until false
 end
@@ -147,7 +147,7 @@ local function loop_accept(actor_addr, skt, handler, timeout)
 
     skt_wait(skt, reading, reverse_r, actor_addr)
 
-    local s, skt_recv = apo.recv(filter_skt)
+    local s, skt_recv = ambox.recv(filter_skt)
     assert(skt == skt_recv)
   until false
 end
@@ -165,5 +165,5 @@ end
 
 ------------------------------------------
 
-return actor_socket_create()
+return asock_create()
 

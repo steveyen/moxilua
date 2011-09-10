@@ -86,7 +86,7 @@ local function create_replicator(success_msg, cmd_policy)
     local oks  = 0
 
     for i = 1, n do
-      if apo.recv() then
+      if ambox.recv() then
         oks = oks + 1
       end
 
@@ -218,7 +218,7 @@ local function create_replication_spec(policy)
 
           local oks = 0
           for i = 1, n do
-            if apo.recv() then
+            if ambox.recv() then
               oks = oks + 1
             end
           end

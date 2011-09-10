@@ -6,7 +6,7 @@ local function spawn_downstream(location, done_func)
 
   local function downstream(self_addr)
     while dconn do
-      local what, notify_addr, response, handler, args, notify_data = apo.recv()
+      local what, notify_addr, response, handler, args, notify_data = ambox.recv()
 
       if what == "fwd" then
         args = args or {}
@@ -26,14 +26,14 @@ local function spawn_downstream(location, done_func)
           ok, err = false, "downstream closed"
         end
 
-        apo.send(notify_addr, ok, err, notify_data)
+        ambox.send(notify_addr, ok, err, notify_data)
       end
     end
 
     done_func(self_addr)
   end
 
-  return apo.spawn_name(downstream, "downstream")
+  return ambox.spawn_name(downstream, "downstream")
 end
 
 ------------------------------------------
@@ -60,7 +60,7 @@ function memcached_pool(locations)
         downstream = {
           location = x.location,     -- eg, "localhost:11211"
           kind     = x.kind,         -- eg, binary or ascii.
-          addr     = downstream_addr -- An apo addr.
+          addr     = downstream_addr -- An ambox addr.
         }
 
         downstreams[k] = downstream
@@ -74,7 +74,7 @@ function memcached_pool(locations)
       function()
         for i = 1, #downstream_addrs do
           if downstream_addrs[i] then
-            apo.send(downstream_addrs[i], "close")
+            ambox.send(downstream_addrs[i], "close")
           end
         end
       end,

@@ -104,7 +104,7 @@ local function replicate_request(request,
   -- remaining replica, if any are left.
   --
   while (s.received_ok + s.received_err) < #s.sent_ok do
-    local ok, err, replicator = apo.recv()
+    local ok, err, replicator = ambox.recv()
     if assert(replicator == s) then
       if ok then
         s.received_ok = s.received_ok + 1
@@ -370,7 +370,7 @@ local function replicate_requests(request_to_replica_nodes,
     local sent = 0
 
     for i = 1, num_recv_needed do
-      local ok, err, replicator = apo.recv()
+      local ok, err, replicator = ambox.recv()
       if replicator then
         if ok then
           replicator.received_ok = replicator.received_ok + 1

@@ -1,6 +1,6 @@
 socket = require('socket')
-apo    = require('actor_post_office')
-asock  = require('actor_socket')
+ambox  = require('ambox')
+asock  = require('asock')
 
 require 'util'
 

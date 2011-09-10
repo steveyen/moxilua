@@ -230,7 +230,7 @@ local function create_multiget_replicator(cmd_policy)
 
     pool.each(
       function(downstream)
-        apo.unwatch(downstream.addr)
+        ambox.unwatch(downstream.addr)
       end)
 
     return sock_send(skt, "END\r\n")

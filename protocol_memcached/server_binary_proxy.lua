@@ -28,15 +28,15 @@ b2x = {
         return true
       end
 
-      local self_addr = apo.self_addr()
+      local self_addr = ambox.self_addr()
 
-      apo.watch(downstream.addr, self_addr, false)
+      ambox.watch(downstream.addr, self_addr, false)
 
-      apo.send_track(downstream.addr,
-                     self_addr, { false, "missing downstream", notify_data },
-                     "fwd", self_addr, response,
-                     memcached_client[downstream.kind][cmd], args,
-                     notify_data)
+      ambox.send_track(downstream.addr,
+                       self_addr, { false, "missing downstream", notify_data },
+                       "fwd", self_addr, response,
+                       memcached_client[downstream.kind][cmd], args,
+                       notify_data)
 
       return true
     end,
@@ -119,8 +119,8 @@ local function forward_simple(pool, skt, req, args)
      downstream.addr then
     if b2x.forward(downstream, skt,
                    pack.opcode(req, 'request'), args) then
-      local ok, err = apo.recv()
-      apo.unwatch(downstream.addr)
+      local ok, err = ambox.recv()
+      ambox.unwatch(downstream.addr)
       if ok then
         return ok, err
       end
@@ -149,14 +149,14 @@ local function forward_broadcast(pool, skt, req, args, response_filter)
 
   local oks = 0 -- TODO: Do something with oks count.
   for i = 1, n do
-    if apo.recv() then
+    if ambox.recv() then
       oks = oks + 1
     end
   end
 
   pool.each(
     function(downstream)
-      apo.unwatch(downstream.addr)
+      ambox.unwatch(downstream.addr)
     end)
 
   local res =
