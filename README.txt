@@ -60,3 +60,6 @@ For example:
     lua -l luarocks.require protocol_memcached/test_client_binary.lua localhost:11433
     lua -l luarocks.require protocol_memcached/test_client_binary.lua localhost:11444
 
+# LICENSE
+
+Apache 2.0 License
