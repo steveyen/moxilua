@@ -357,12 +357,12 @@ local function spawn_with(spawner, f, suffix, ...)
   return child_addr
 end
 
-local function spawn(f, ...)
-  return spawn_with(coroutine.create, f, nil, ...)
-end
-
 local function spawn_name(f, name, ...)
   return spawn_with(coroutine.create, f, name, ...)
+end
+
+local function spawn(f, ...)
+  return spawn_name(f, nil, ...)
 end
 
 ----------------------------------------
