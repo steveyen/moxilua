@@ -7,7 +7,7 @@ function player(self_addr, name, n, max)
   while true do
     ball = apo.recv()
     n_recvs = n_recvs + 1
-    print(name .. " got ball, hits " .. ball.hits)
+    -- print(name .. " got ball, hits " .. ball.hits)
 
     if ball.hits <= max then
       for i = 1, n do
@@ -18,10 +18,10 @@ function player(self_addr, name, n, max)
   end
 end
 
-mike_addr = apo.spawn(player, "Mike", 5, 10)
-mary_addr = apo.spawn(player, "Mary", 1, 10)
+mike_addr = apo.spawn(player, "Mike", 1, 2000000)
+mary_addr = apo.spawn(player, "Mary", 1, 2000000)
 
-apo.send(mike_addr, { from = mary_addr, hits = 1})
+apo.send(mike_addr, { from = mary_addr, hits = 1 })
 n_sends = n_sends + 1
 
 print(n_sends, n_recvs)
