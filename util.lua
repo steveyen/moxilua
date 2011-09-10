@@ -4,11 +4,11 @@ if _G.sock_recv == nil and
    _G.sock_send == nil and
    _G.asock then
   function sock_recv(skt, pattern)
-    return asock.recv(apo.self_address(), skt, pattern)
+    return asock.recv(apo.self_addr(), skt, pattern)
   end
 
   function sock_send(skt, data, from, to)
-    return asock.send(apo.self_address(), skt, data, from, to)
+    return asock.send(apo.self_addr(), skt, data, from, to)
   end
 end
 

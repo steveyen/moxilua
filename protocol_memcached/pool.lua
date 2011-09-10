@@ -60,7 +60,7 @@ function memcached_pool(locations)
         downstream = {
           location = x.location,     -- eg, "localhost:11211"
           kind     = x.kind,         -- eg, binary or ascii.
-          addr     = downstream_addr -- An apo address.
+          addr     = downstream_addr -- An apo addr.
         }
 
         downstreams[k] = downstream

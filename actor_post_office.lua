@@ -11,13 +11,12 @@
 function actor_post_office_create()
 
 local function create_mbox(addr, coro)
-  return {
-    addr = addr,
-    coro = coro,
-
-    -- data     = nil, -- User data for this mbox.
-    -- watchers = nil, -- Array of watcher addresses.
-    -- filter   = nil  -- A filter function passed in during recv()
+  return { -- A mailbox for an actor coroutine.
+    addr     = addr,
+    coro     = coro,
+    data     = nil, -- User data for this mbox.
+    watchers = nil, -- Array of watcher addresses.
+    filter   = nil  -- A filter function passed in during recv()
   }
 end
 
@@ -31,8 +30,6 @@ local map_addr_to_mbox = {} -- table, key'ed by addr.
 local map_coro_to_addr = {} -- table, key'ed by coro.
 
 local envelopes = {}
-
-----------------------------------------
 
 local main_todos = {} -- Array of funcs/closures, to be run on main thread.
 
@@ -53,7 +50,7 @@ end
 
 ----------------------------------------
 
-local function next_address()
+local function next_addr() -- Generates available mbox / actor addr.
   local curr_addr
 
   repeat
@@ -64,7 +61,7 @@ local function next_address()
   return curr_addr
 end
 
-local function coroutine_address(coro)
+local function coroutine_addr(coro)
   if coro then
     return map_coro_to_addr[coro]
   end
@@ -72,7 +69,7 @@ local function coroutine_address(coro)
   return nil
 end
 
-local function address_coroutine(addr)
+local function addr_coroutine(addr)
   if addr then
     local mbox = map_addr_to_mbox[addr]
     if mbox then
@@ -83,8 +80,8 @@ local function address_coroutine(addr)
   return nil
 end
 
-local function self_address()
-  return coroutine_address(coroutine.running())
+local function self_addr()
+  return coroutine_addr(coroutine.running())
 end
 
 ----------------------------------------
@@ -102,7 +99,7 @@ end
 local function register(coro, opt_suffix)
   unregister(map_coro_to_addr[coro])
 
-  local addr = next_address()
+  local addr = next_addr()
 
   if opt_suffix then
     addr = addr .. "." .. opt_suffix
@@ -121,7 +118,7 @@ end
 ----------------------------------------
 
 local function user_data()
-  local addr = self_address()
+  local addr = self_addr()
   if addr then
     local mbox = map_addr_to_mbox[addr]
     if mbox then
@@ -223,7 +220,7 @@ local function deliver_envelope(envelope)
       end
     else
       -- The destination mbox/coro is gone, probably finished already,
-      -- so send the tracking address a notification message.
+      -- so send the tracking addr a notification message.
       --
       -- We're careful here that there's either a track notification
       -- or a watcher notification (via finish() above), but not both.
@@ -298,10 +295,10 @@ local function send(dest_addr, ...)
 end
 
 -- Asynchronous send of variable args as a message, similar to send(),
--- except a tracking address and message can be supplied.  The
--- tracking address will be notified with the unpacked track_args if
+-- except a tracking addr and message can be supplied.  The
+-- tracking addr will be notified with the unpacked track_args if
 -- there are problems sending the message to the dest_addr, such as if
--- the destination address does not represent a live actor.
+-- the destination addr does not represent a live actor.
 --
 local function send_track(dest_addr, track_addr, track_args, ...)
   if dest_addr then
@@ -322,7 +319,7 @@ local function recv(opt_filter)
   if coro then
     -- The opt_filter might be nil, which is fine.
     --
-    map_addr_to_mbox[coroutine_address(coro)].filter = opt_filter
+    map_addr_to_mbox[coroutine_addr(coro)].filter = opt_filter
 
     return coroutine.yield()
   end
@@ -370,7 +367,7 @@ end
 
 ----------------------------------------
 
--- Registers a watcher actor to a target actor address.  A single
+-- Registers a watcher actor to a target actor addr.  A single
 -- watcher actor can register multiple times on a target actor with
 -- different watcher_arg's.  When then target actor dies, the watcher
 -- will be notified multiple times via a sent message, once for each
@@ -380,7 +377,7 @@ end
 -- registrations for a watcher actor on a target actor.
 --
 local function watch(target_addr, watcher_addr, ...)
-  watcher_addr = watcher_addr or self_address()
+  watcher_addr = watcher_addr or self_addr()
   watcher_arg  = { ... }
 
   if target_addr and watcher_addr then
@@ -404,12 +401,12 @@ local function watch(target_addr, watcher_addr, ...)
 end
 
 -- The unwatch() is not symmetric with watch(), in that unwatch()
--- clears the entire watcher_args list for a watcher address.  That
+-- clears the entire watcher_args list for a watcher addr.  That
 -- is, multiple calls to watch() for a watcher_addr, will be cleared
 -- out by a single call to unwatch().
 --
 local function unwatch(target_addr, watcher_addr)
-  watcher_addr = watcher_addr or self_address()
+  watcher_addr = watcher_addr or self_addr()
 
   if target_addr and watcher_addr then
     local mbox = map_addr_to_mbox[target_addr]
@@ -445,9 +442,9 @@ return {
 
   --------------------------------
 
-  coroutine_address = coroutine_address,
-  address_coroutine = address_coroutine,
-  self_address      = self_address,
+  coroutine_addr = coroutine_addr,
+  addr_coroutine = addr_coroutine,
+  self_addr      = self_addr,
 
   --------------------------------
 

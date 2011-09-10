@@ -29,7 +29,7 @@ a2x = {
         return true
       end
 
-      local self_addr = apo.self_address()
+      local self_addr = apo.self_addr()
 
       apo.watch(downstream.addr, self_addr, false)
 

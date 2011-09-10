@@ -45,12 +45,12 @@ local _skt_mt = {
   __index = {
     send =
       function(self, data, from, to)
-        return asock.send(apo.self_address(), self.socket, data, from, to)
+        return asock.send(apo.self_addr(), self.socket, data, from, to)
       end,
 
     receive =
       function(self, pattern)
-        return asock.recv(apo.self_address(), self.socket, pattern)
+        return asock.recv(apo.self_addr(), self.socket, pattern)
       end,
 
     flush =
