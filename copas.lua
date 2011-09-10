@@ -6,13 +6,13 @@ asock = require('asock')
 require('util')
 
 -- A reimplementation of the "copas" library API, based on the
--- actor_post_office/actor_socket libraries.
+-- ambox/asock libraries.
 --
 -- The standard copas implementation invokes coroutine.yield() with
 -- internal copas objects, causing strange interactions with
 -- concurrentlua and (the replacement for concurrentlua),
--- actor_post_office.  That is, copas wants to monopolize
--- coroutine.yield(), which is doesn't fit our needs.
+-- ambox.  That is, copas wants to monopolize coroutine.yield(),
+-- which is doesn't fit our needs.
 --
 module("copas", package.seeall)
 
