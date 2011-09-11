@@ -42,6 +42,8 @@ end
 
 -- Converts string of network ordered bytes to a number.
 --
+-- Example: print_bytes(string.char(network_bytes(0x12345678, 4)))
+--
 local function network_bytes_string_to_number(str, from, num_bytes)
   assert(num_bytes >= 1 and num_bytes <= 4)
 
