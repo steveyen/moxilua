@@ -1,3 +1,6 @@
+socket = require('socket')
+
+require('util')
 require('test/test_base')
 require('protocol_memcached/client')
 
@@ -8,6 +11,7 @@ client = memcached_client_binary
 location = arg[1] or '127.0.0.1:11211'
 
 host, port, c = connect(location)
+c:setoption('tcp-nodelay', true)
 c:settimeout(nil)
 
 ------------------------------------------
