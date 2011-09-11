@@ -98,7 +98,6 @@ local function dict_arith(dict, skt, cmd, arr)
   return sock_send(skt, "ERROR\r\n")
 end
 
-
 ---------------------------------------------------
 
 memcached_server_ascii_dict = {
