@@ -8,13 +8,13 @@
 local function network_bytes_array(x, num_bytes)
   local a = {}
   for i = num_bytes, 1, -1 do
-    a[i] = math.mod(x, 0x0100) -- lua has no bitmask/shift operators.
+    a[i] = math.mod(x, 0x0100) -- lua has no bit operators.
     x = math.floor(x / 0x0100)
   end
   return a -- returns array of bytes numbers, highest order first.
 end
 
--- Multiple return values of network ordered bytes from an input integer x.
+-- Multiple return values of network ordered bytes from integer.
 -- Highest order bytes comes first (network byte ordering).
 --
 -- For example, you can: string.char(network_bytes(0x123, 4))
@@ -99,22 +99,26 @@ function TEST_network_bytes()
   s = string.char(unpack(a))
   assert(string.len(s) == 4)
 
+  local nbatn = network_bytes_array_to_number
+
   x = 0
-  assert(network_bytes_array_to_number(network_bytes_array(x, 4), 1, 4) == x)
+  assert(nbatn(network_bytes_array(x, 4), 1, 4) == x)
 
   x = 0x01
-  assert(network_bytes_array_to_number(network_bytes_array(x, 4), 1, 4) == x)
+  assert(nbatn(network_bytes_array(x, 4), 1, 4) == x)
 
   x = 0x111
-  assert(network_bytes_array_to_number(network_bytes_array(x, 4), 1, 4) == x)
+  assert(nbatn(network_bytes_array(x, 4), 1, 4) == x)
 
   x = 0x0faabbcc
-  assert(network_bytes_array_to_number(network_bytes_array(x, 4), 1, 4) == x)
+  assert(nbatn(network_bytes_array(x, 4), 1, 4) == x)
 
   x = 0x8faabbcc
-  assert(network_bytes_array_to_number(network_bytes_array(x, 4), 1, 4) == x)
+  assert(nbatn(network_bytes_array(x, 4), 1, 4) == x)
 
   x = 0x8faabbcc
-  assert(network_bytes_array_to_number(network_bytes_array(x, 2), 1, 2) == 0xbbcc)
+  assert(nbatn(network_bytes_array(x, 2), 1, 2) == 0xbbcc)
+
+  print("OK")
 end
 
