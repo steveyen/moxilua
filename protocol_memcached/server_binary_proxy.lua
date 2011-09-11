@@ -37,7 +37,6 @@ b2x = {
                        "fwd", self_addr, response,
                        memcached_client[downstream.kind][cmd], args,
                        notify_data)
-
       return true
     end,
 
