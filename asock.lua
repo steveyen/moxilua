@@ -76,7 +76,8 @@ local function step(timeout)
     return nil
   end
 
-  local readable, writable, err = socket.select(reading, writing, timeout)
+  local readable, writable, err =
+    socket.select(reading, writing, timeout)
 
   process_ready(writable, "w")
   process_ready(readable, "r")
