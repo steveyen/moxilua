@@ -44,7 +44,7 @@ local map_coro_to_addr = {} -- table, key'ed by coro.
 
 local envelopes = {}
 
-local main_todos = {} -- Array of funcs/closures, to be run on main thread.
+local main_todos = {} -- Array of closures, to be run on main thread.
 
 local function run_main_todos(force)
   -- Check first if we're the main thread.
@@ -130,8 +130,8 @@ end
 
 ----------------------------------------
 
-local function user_data()
-  local addr = self_addr()
+local function user_data(addr)
+  addr = addr or self_addr()
   if addr then
     local mbox = map_addr_to_mbox[addr]
     if mbox then
@@ -473,9 +473,9 @@ return {
 
   --------------------------------
 
-  register          = register,
-  unregister        = unregister,
-  is_registered     = is_registered,
+  -- register   = register,
+  -- unregister = unregister,
+  is_registered = is_registered,
 
   --------------------------------
 
