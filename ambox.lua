@@ -405,7 +405,7 @@ end
 --
 local function watch(target_addr, watcher_addr, ...)
   watcher_addr = watcher_addr or self_addr()
-  watcher_arg  = { ... }
+  local watcher_arg = { ... }
 
   if target_addr and watcher_addr then
     local mbox = map_addr_to_mbox[target_addr]
@@ -450,11 +450,10 @@ end
 ----------------------------------------
 
 local function stats_snapshot()
-  local rv = {}
+  local rv = { cur_envelopes = #envelopes }
   for k, v in pairs(stats) do
     rv[k] = stats[k]
   end
-  rv.cur_envelopes = #envelopes
   return rv
 end
 
