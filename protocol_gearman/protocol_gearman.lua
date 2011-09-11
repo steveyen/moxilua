@@ -1,4 +1,4 @@
-require 'test_base'
+require 'test/test_base'
 
 local function field(size, name)
   return { name = name, size = size }

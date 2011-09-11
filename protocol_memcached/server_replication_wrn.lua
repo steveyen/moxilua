@@ -4,7 +4,7 @@ local pack = mpb.pack
 
 local SUCCESS = mpb.response_stats.SUCCESS
 
-require('test_base')
+require('test/test_base')
 
 -- Function that wraps a downstream with a wrn-friendly node interface.
 --
