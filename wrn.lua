@@ -342,13 +342,13 @@ local function replicate_requests(request_to_replica_nodes,
     replicator.send()
   end
 
-  -- Notification to allow the caller to uncork any real, underlying sends.
+  -- Notification allowing caller to uncork any real, underlying sends.
   --
   replica_sends_done()
 
   -- Wait for responses to what we successfully sent.  If we received
-  -- an error, do another round of replicator.send() of the request to a
-  -- remaining replica, if any are left.
+  -- an error, do another round of replicator.send() of the request to
+  -- a remaining replica, if any are left.
   --
   local replicator_done_notified = {}
   local num_recv_needed
