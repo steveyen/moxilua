@@ -10,6 +10,19 @@
 
 function ambox_create()
 
+local stats = {
+  tot_actor_spawn = 0,
+  tot_actor_resume = 0,
+  tot_actor_finish = 0,
+  tot_msg_deliver = 0,
+  tot_msg_resend = 0,
+  tot_send = 0,
+  tot_recv = 0,
+  tot_loop = 0
+}
+
+----------------------------------------
+
 local function create_mbox(addr, coro)
   return { -- A mailbox for an actor coroutine.
     addr     = addr,
@@ -141,6 +154,8 @@ local function resume(coro, ...)
   -- TODO: Do we need xpcall around resume()?
   --
   if coro and coroutine.status(coro) ~= 'dead' then
+    stats.tot_actor_resume = stats.tot_actor_resume + 1
+
     local ok = coroutine.resume(coro, ...)
     if not ok then
       -- When running on kahlua.
@@ -161,6 +176,8 @@ end
 -- Lowest-level asynchronous send of a message.
 --
 local function send_msg(dest_addr, dest_msg, track_addr, track_args)
+  stats.tot_send = stats.tot_send + 1
+
   table.insert(envelopes, { dest_addr  = dest_addr,
                             dest_msg   = dest_msg,
                             track_addr = track_addr,
@@ -175,6 +192,8 @@ local function finish(addr)
   local mbox = map_addr_to_mbox[addr]
   if mbox then
     watchers = mbox.watchers
+
+    stats.tot_actor_finish = stats.tot_actor_finish + 1
   end
 
   unregister(addr)
@@ -218,6 +237,8 @@ local function deliver_envelope(envelope)
       if not resume(mbox.coro, unpack(dest_msg)) then
         finish(envelope.dest_addr)
       end
+
+      stats.tot_msg_deliver = stats.tot_msg_deliver + 1
     else
       -- The destination mbox/coro is gone, probably finished already,
       -- so send the tracking addr a notification message.
@@ -241,6 +262,8 @@ local function loop_until_empty(force)
   -- Check first if we're the main thread.
   --
   if (coroutine.running() == nil) or force then
+    stats.tot_loop = stats.tot_loop + 1
+
     local delivered = 0
 
     repeat
@@ -260,16 +283,16 @@ local function loop_until_empty(force)
 
       assert(#envelopes <= 0)
 
-      envelopes = resends
+      stats.tot_msg_resend = stats.tot_msg_resend + #resends
+
+      if #envelopes <= 0 then
+        envelopes = resends
+      else
+        for i = 1, #resends do
+          envelopes[#envelopes + 1] = resends[i]
+        end
+      end
     until (#envelopes <= 0 or delivered <= 0)
-  end
-end
-
-----------------------------------------
-
-local function loop()
-  while true do
-    loop_until_empty()
   end
 end
 
@@ -321,6 +344,8 @@ local function recv(opt_filter)
     --
     map_addr_to_mbox[coroutine_addr(coro)].filter = opt_filter
 
+    stats.tot_recv = stats.tot_recv + 1
+
     return coroutine.yield()
   end
 
@@ -344,6 +369,8 @@ local function spawn_with(spawner, f, suffix, ...)
 
   child_coro = spawner(child_fun)
   child_addr = register(child_coro, suffix)
+
+  stats.tot_actor_spawn = stats.tot_actor_spawn + 1
 
   table.insert(main_todos,
     function()
@@ -422,6 +449,17 @@ end
 
 ----------------------------------------
 
+local function stats_snapshot()
+  local rv = {}
+  for k, v in pairs(stats) do
+    rv[k] = stats[k]
+  end
+  rv.cur_envelopes = #envelopes
+  return rv
+end
+
+----------------------------------------
+
 return {
   recv       = recv,
   send       = send,
@@ -448,7 +486,11 @@ return {
 
   --------------------------------
 
-  loop_until_empty = loop_until_empty
+  loop_until_empty = loop_until_empty,
+
+  --------------------------------
+
+  stats = stats_snapshot
 }
 
 end

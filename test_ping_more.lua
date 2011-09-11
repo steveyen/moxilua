@@ -27,4 +27,7 @@ n_sends = n_sends + 1
 print(n_sends, n_recvs)
 assert(n_sends == n_recvs, n_sends, n_recvs)
 
+s = ambox.stats()
+for k, v in pairs(s) do print(k, v) end
+
 

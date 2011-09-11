@@ -28,6 +28,9 @@ ambox.send(last_addr, "hi!")
 
 t_sent = os.clock()
 
+s = ambox.stats()
+for k, v in pairs(s) do print(k, v) end
+
 print("spawns/sec: ", times / (t_spawned - t_start))
 print("msgs/sec:   ", times / (t_sent - t_spawned))
 
