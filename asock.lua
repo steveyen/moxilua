@@ -14,6 +14,8 @@ local reverse_w = {} -- Reverse lookup socket to reading/writing index.
 
 local waiting_actor = {} -- Keyed by socket, value is actor addr.
 
+local SKT = 0x000050CE4 -- For ambox message filtering.
+
 ------------------------------------------
 
 local function skt_unwait(skt, sockets, reverse)
@@ -59,7 +61,7 @@ local function awake_actor(skt)
   if actor_addr then
     assert(skt)
 
-    ambox.send_later(actor_addr, "skt", skt)
+    ambox.send_later(actor_addr, SKT, skt)
   end
 end
 
@@ -91,7 +93,7 @@ end
 -- A filter for ambox.recv(), where we only want awake_actor() calls.
 --
 local function filter_skt(s, skt)
-  return (s == "skt") and skt
+  return (s == SKT) and skt
 end
 
 ------------------------------------------
