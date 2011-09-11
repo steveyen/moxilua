@@ -21,6 +21,15 @@ local stats = {
   tot_loop = 0
 }
 
+-- Map actor addresses to actor coroutines and vice-versa.
+--
+local map_addr_to_mbox = {} -- Table, key'ed by addr.
+local map_coro_to_addr = {} -- Table, key'ed by coro.
+
+local last_addr  = 0
+local envelopes  = {}
+local main_todos = {} -- Array of closures, to be run on main thread.
+
 ----------------------------------------
 
 local function create_mbox(addr, coro)
@@ -33,35 +42,23 @@ local function create_mbox(addr, coro)
   }
 end
 
-----------------------------------------
-
-local last_addr = 0
-
--- Map actor addresses to actor coroutines and vice-versa.
-
-local map_addr_to_mbox = {} -- table, key'ed by addr.
-local map_coro_to_addr = {} -- table, key'ed by coro.
-
-local envelopes = {}
-
-local main_todos = {} -- Array of closures, to be run on main thread.
-
-local function run_main_todos(force)
-  -- Check first if we're the main thread.
-  if (coroutine.running() == nil) or force then
-    local todo = nil
-    repeat
-      todo = table.remove(main_todos, 1)
-      if todo then
-        todo()
+local function user_data(addr)
+  addr = addr or self_addr()
+  if addr then
+    local mbox = map_addr_to_mbox[addr]
+    if mbox then
+      local data = mbox.data
+      if not data then
+        data = {}
+        mbox.data = data
       end
-    until todo == nil
+
+      return data
+    end
   end
 
-  return true
+  return nil
 end
-
-----------------------------------------
 
 local function next_addr() -- Generates available mbox / actor addr.
   local curr_addr
@@ -130,22 +127,19 @@ end
 
 ----------------------------------------
 
-local function user_data(addr)
-  addr = addr or self_addr()
-  if addr then
-    local mbox = map_addr_to_mbox[addr]
-    if mbox then
-      local data = mbox.data
-      if not data then
-        data = {}
-        mbox.data = data
+local function run_main_todos(force)
+  -- Check first if we're the main thread.
+  if (coroutine.running() == nil) or force then
+    local todo = nil
+    repeat
+      todo = table.remove(main_todos, 1)
+      if todo then
+        todo()
       end
-
-      return data
-    end
+    until todo == nil
   end
 
-  return nil
+  return true
 end
 
 ----------------------------------------
@@ -186,6 +180,8 @@ end
 
 ----------------------------------------
 
+-- Invoked when an actor is done.
+--
 local function finish(addr)
   local watchers = nil
 
@@ -198,7 +194,7 @@ local function finish(addr)
 
   unregister(addr)
 
-  -- Notify watchers.
+  -- Notify watchers of a finished actor.
   --
   if watchers then
     for watcher_addr, watcher_args in pairs(watchers) do
@@ -304,9 +300,7 @@ local function send_later(dest_addr, ...)
   send_msg(dest_addr, { ... })
 end
 
--- Asynchronous send of variable args as a message.
---
--- Unlike send_later(), a send() might opportunistically,
+-- Unlike send_later(), a send() might opportunistically
 -- process the message immediately before returning.
 --
 local function send(dest_addr, ...)
@@ -318,10 +312,10 @@ local function send(dest_addr, ...)
 end
 
 -- Asynchronous send of variable args as a message, similar to send(),
--- except a tracking addr and message can be supplied.  The
--- tracking addr will be notified with the unpacked track_args if
--- there are problems sending the message to the dest_addr, such as if
--- the destination addr does not represent a live actor.
+-- except a tracking addr and message can be supplied.  The tracking
+-- addr will be notified with the unpacked track_args if there are
+-- problems sending the message to the dest_addr, such as if the
+-- destination addr does not represent a live actor.
 --
 local function send_track(dest_addr, track_addr, track_args, ...)
   if dest_addr then
@@ -354,6 +348,8 @@ end
 
 ----------------------------------------
 
+-- Spawn an actor coroutine, whose function is f.
+--
 local function spawn_with(spawner, f, suffix, ...)
   local child_coro = nil
   local child_addr = nil
@@ -394,11 +390,11 @@ end
 
 ----------------------------------------
 
--- Registers a watcher actor to a target actor addr.  A single
--- watcher actor can register multiple times on a target actor with
--- different watcher_arg's.  When then target actor dies, the watcher
--- will be notified multiple times via a sent message, once for each
--- call to the original watch().
+-- Registers a watcher actor to a target actor addr.  A single watcher
+-- actor can register multiple times on a target actor with different
+-- watcher_arg's.  When then target actor dies, the watcher will be
+-- notified multiple times via a sent message, once for each call to
+-- the original watch().
 --
 -- A call to the related unwatch() function clears all the
 -- registrations for a watcher actor on a target actor.
