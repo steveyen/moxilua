@@ -1,5 +1,3 @@
-require 'util'
-
 p = print
 
 function printa(a, prefix)

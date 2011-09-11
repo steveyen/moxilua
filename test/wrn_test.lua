@@ -2,7 +2,7 @@
 --
 --   $ lua -l luarocks.require wrn_test.lua
 --
-require('test_base')
+require('test/test_base')
 
 ambox = require('ambox')
 wrn   = require('wrn')
