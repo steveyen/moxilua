@@ -59,8 +59,6 @@ local function awake_actor(skt)
   skt_unwait(skt, writing, reverse_w)
 
   if actor_addr then
-    assert(skt)
-
     ambox.send_later(actor_addr, SKT, skt)
   end
 end
