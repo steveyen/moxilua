@@ -1,0 +1,9 @@
+- single threaded.
+
+- ambox message filtering inefficiently resends
+  all filtered-out messages.  It can instead hold aside
+  filtered-out messages until the filter changes.
+
+- only a single message queue rather than per-actor.
+
+- more stats needed.

@@ -256,7 +256,6 @@ end
 --
 local function loop_until_empty(force)
   -- Check first if we're the main thread.
-  --
   if (coroutine.running() == nil) or force then
     stats.tot_loop = stats.tot_loop + 1
 
@@ -269,7 +268,8 @@ local function loop_until_empty(force)
 
       while run_main_todos() and
             (#envelopes > 0) do
-        -- TODO: Is table.remove() very inefficient?
+        -- TODO: Simple timings show that table.remove() is faster
+        -- than an explicit index access, but this needs revisiting.
         --
         local resend = deliver_envelope(table.remove(envelopes, 1))
         if resend then
