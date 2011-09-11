@@ -1,6 +1,6 @@
 -- Protocol util functions.
 --
-function protocol_util_create()
+local function protocol_util_create()
 
 ------------------------------------------------------
 

@@ -1,4 +1,5 @@
--- Define the sock_send/recv functions to use asynchronous actor sockets.
+-- Define the sock_send/recv functions to use the
+-- asynchronous actor sockets.
 --
 if _G.sock_recv == nil and
    _G.sock_send == nil and

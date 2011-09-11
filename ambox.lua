@@ -5,10 +5,10 @@
 --
 -- for local process only (not distributed), single main thread,
 -- based on lua coroutines, with a trampoline-based design.
+--
+local function ambox_create()
 
 ----------------------------------------
-
-function ambox_create()
 
 local stats = {
   tot_actor_spawn = 0,

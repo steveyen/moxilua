@@ -2,7 +2,9 @@
 --
 local socket = require("socket")
 
-function asock_create()
+local function asock_create()
+
+----------------------------------------
 
 local reading = {} -- Array of sockets for next select().
 local writing = {} -- Array of sockets for next select().
