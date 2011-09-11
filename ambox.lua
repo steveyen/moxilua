@@ -269,6 +269,8 @@ local function loop_until_empty(force)
 
       while run_main_todos() and
             (#envelopes > 0) do
+        -- TODO: Is table.remove() very inefficient?
+        --
         local resend = deliver_envelope(table.remove(envelopes, 1))
         if resend then
           resends[#resends + 1] = resend
