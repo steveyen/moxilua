@@ -24,15 +24,32 @@ print("start")
 
 ----------------------------------------
 
-host = "127.0.0.1"
+local host = "127.0.0.1"
 
 -- An in-memory dictionary for when we are a memcached server.
 -- The extra level of indirection with the sub-dict ("tbl")
 -- allows for easy flush_all implementation.
 --
-dict = { tbl = {} }
+local dict = { tbl = {} }
+
+----------------------------------------
+
+local UPSTREAM_SESSION = "US"
+
+function upstream_accept(acceptor_addr, server_skt, sess_actor, env)
+  local session_handler = function(upstream_skt)
+    upstream_skt:setoption('tcp-nodelay', true)
+    upstream_skt:settimeout(0)
+
+    ambox.spawn_name(sess_actor, UPSTREAM_SESSIONS, env, upstream_skt)
+  end
+
+  asock.loop_accept(acceptor_addr, server_skt, session_handler)
+end
 
 ---------------
+
+local server
 
 -- Start ascii proxy to memcached.
 server = socket.bind(host, 11300)
