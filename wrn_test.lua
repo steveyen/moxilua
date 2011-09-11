@@ -4,7 +4,8 @@
 --
 require('test_base')
 
-wrn = require('wrn')
+ambox = require('ambox')
+wrn   = require('wrn')
 
 do
 

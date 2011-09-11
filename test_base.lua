@@ -1,7 +1,3 @@
-socket = require('socket')
-ambox  = require('ambox')
-asock  = require('asock')
-
 require 'util'
 
 p = print
