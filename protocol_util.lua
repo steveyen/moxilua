@@ -1,8 +1,11 @@
--- Protocol util functions...
+-- Protocol util functions.
 --
+function protocol_util_create()
+
 ------------------------------------------------------
 
 -- Creates array of bytes from an input integer x.
+--
 -- Highest order bytes comes first (network byte ordering).
 --
 local function network_bytes_array(x, num_bytes)
@@ -15,9 +18,8 @@ local function network_bytes_array(x, num_bytes)
 end
 
 -- Multiple return values of network ordered bytes from integer.
--- Highest order bytes comes first (network byte ordering).
 --
--- For example, you can: string.char(network_bytes(0x123, 4))
+-- Example: string.char(network_bytes(0x123, 4))
 --
 local function network_bytes(x, num_bytes)
   return unpack(network_bytes_array(x, num_bytes))
@@ -70,7 +72,7 @@ end
 
 ------------------------------------------------------
 
-protocol_util = {
+return {
   network_bytes                  = network_bytes,
   network_bytes_array            = network_bytes_array,
   network_bytes_array_to_number  = network_bytes_array_to_number,
@@ -79,46 +81,54 @@ protocol_util = {
   print_bytes = print_bytes
 }
 
+end
+
 ------------------------------------------------------
 
 function TEST_network_bytes()
-  a, b, c, d = network_bytes(0x0faabbcc, 4)
+  pru = require('protocol_util')
+
+  a, b, c, d = pru.network_bytes(0x0faabbcc, 4)
   assert(a == 0x0f)
   assert(b == 0xaa)
   assert(c == 0xbb)
   assert(d == 0xcc)
 
-  a, b, c, d = network_bytes(0x8faabbcc, 4) -- Test high bit.
+  a, b, c, d = pru.network_bytes(0x8faabbcc, 4) -- Test high bit.
   assert(a == 0x8f)
   assert(b == 0xaa)
   assert(c == 0xbb)
   assert(d == 0xcc)
 
-  a = network_bytes_array(0, 4)
+  a = pru.network_bytes_array(0, 4)
   assert(#a == 4)
   s = string.char(unpack(a))
   assert(string.len(s) == 4)
 
-  local nbatn = network_bytes_array_to_number
+  local nbatn = pru.network_bytes_array_to_number
 
   x = 0
-  assert(nbatn(network_bytes_array(x, 4), 1, 4) == x)
+  assert(nbatn(pru.network_bytes_array(x, 4), 1, 4) == x)
 
   x = 0x01
-  assert(nbatn(network_bytes_array(x, 4), 1, 4) == x)
+  assert(nbatn(pru.network_bytes_array(x, 4), 1, 4) == x)
 
   x = 0x111
-  assert(nbatn(network_bytes_array(x, 4), 1, 4) == x)
+  assert(nbatn(pru.network_bytes_array(x, 4), 1, 4) == x)
 
   x = 0x0faabbcc
-  assert(nbatn(network_bytes_array(x, 4), 1, 4) == x)
+  assert(nbatn(pru.network_bytes_array(x, 4), 1, 4) == x)
 
   x = 0x8faabbcc
-  assert(nbatn(network_bytes_array(x, 4), 1, 4) == x)
+  assert(nbatn(pru.network_bytes_array(x, 4), 1, 4) == x)
 
   x = 0x8faabbcc
-  assert(nbatn(network_bytes_array(x, 2), 1, 2) == 0xbbcc)
+  assert(nbatn(pru.network_bytes_array(x, 2), 1, 2) == 0xbbcc)
 
   print("OK")
 end
+
+------------------------------------------------------
+
+return protocol_util_create()
 

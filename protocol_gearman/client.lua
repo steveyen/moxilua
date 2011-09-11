@@ -1,6 +1,6 @@
 -- gearman client...
 --
-require('protocol_util')
+protocol_util = require('protocol_util')
 
 require('protocol_gearman/protocol_gearman')
 
