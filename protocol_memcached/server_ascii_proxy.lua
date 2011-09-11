@@ -29,16 +29,15 @@ a2x = {
         return true
       end
 
-      local self_addr = apo.self_addr()
+      local self_addr = ambox.self_addr()
 
-      apo.watch(downstream.addr, self_addr, false)
+      ambox.watch(downstream.addr, self_addr, false)
 
-      apo.send_track(downstream.addr,
-                     self_addr, { false, "missing downstream", notify_data },
-                     "fwd", self_addr, response,
-                     memcached_client[downstream.kind][cmd], args,
-                     notify_data)
-
+      ambox.send_track(downstream.addr, self_addr,
+                       { false, "missing downstream", notify_data },
+                       "fwd", self_addr, response,
+                       memcached_client[downstream.kind][cmd], args,
+                       notify_data)
       return true
     end,
 
@@ -114,8 +113,8 @@ local function forward_update(pool, skt, cmd, arr)
                          expire = expire,
                          data   = string.sub(data, 1, -3)
                        }) then
-          local ok, err = apo.recv()
-          apo.unwatch(downstream.addr)
+          local ok, err = ambox.recv()
+          ambox.unwatch(downstream.addr)
           if ok then
             return ok, err
           end
@@ -145,8 +144,8 @@ local function forward_arith(pool, skt, cmd, arr)
                        key    = key,
                        amount = amount
                      }) then
-        local ok, err = apo.recv()
-        apo.unwatch(downstream.addr)
+        local ok, err = ambox.recv()
+        ambox.unwatch(downstream.addr)
         if ok then
           return ok, err
         end
@@ -174,13 +173,13 @@ memcached_server_ascii_proxy = {
 
       local oks = 0
       for i = 1, n do
-        if apo.recv() then
+        if ambox.recv() then
           oks = oks + 1
         end
       end
 
       for downstream, _ in pairs(groups) do
-        apo.unwatch(downstream.addr)
+        ambox.unwatch(downstream.addr)
       end
 
       return sock_send(skt, "END\r\n")
@@ -203,8 +202,8 @@ memcached_server_ascii_proxy = {
            downstream.addr then
           if a2x.forward(downstream, skt,
                          "delete", { key = key }) then
-            local ok, err = apo.recv()
-            apo.unwatch(downstream.addr)
+            local ok, err = ambox.recv()
+            ambox.unwatch(downstream.addr)
             if ok then
               return ok, err
             end
@@ -229,14 +228,14 @@ memcached_server_ascii_proxy = {
 
       local oks = 0
       for i = 1, n do
-        if apo.recv() then
+        if ambox.recv() then
           oks = oks + 1
         end
       end
 
       pool.each(
         function(downstream)
-          apo.unwatch(downstream.addr)
+          ambox.unwatch(downstream.addr)
         end)
 
       return sock_send(skt, "OK\r\n")
