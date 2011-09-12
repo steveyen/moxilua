@@ -140,8 +140,8 @@ end
 
 ------------------------------------------------------
 
--- Split string by delimeter character (by default, space).
--- Repeated runs of the delimeter character are 'collapsed'.
+-- Split string by delimiter character (by default, space).
+-- Repeated runs of the delimiter character are 'collapsed'.
 -- That is, split("  hello  world  ") == split("hello world").
 --
 function split(str, delim)
