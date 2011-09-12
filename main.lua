@@ -197,9 +197,18 @@ ambox.spawn(upstream_accept, server,
 
 print("loop")
 
+local i = 0
+
 while true do
   ambox.loop_until_empty()
   asock.step()
+
+  if i % 10000 == 0 then
+    for k, v in pairs(ambox.stats()) do print(k, v) end
+    print("")
+  end
+
+  i = i + 1
 end
 
 print("done")
