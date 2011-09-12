@@ -140,6 +140,40 @@ end
 
 ------------------------------------------------------
 
+-- Split string by delimeter character (by default, space).
+-- Repeated runs of the delimeter character are 'collapsed'.
+-- That is, split("  hello  world  ") == split("hello world").
+--
+function split(str, delim)
+  delim = delim or 32
+  if type(delim) == "string" then
+    delim = string.byte(delim, 1)
+  end
+  local r = {} -- Return array.
+  local s = 1  -- Index of first non-delim character.
+  local i = 1
+  local n = #str
+  while i <= n do
+    local b = string.byte(str, i)
+    while i <= n and b == delim do -- Scan for non-delim.
+      i = i + 1
+      b = string.byte(str, i)
+    end
+    s = i
+    while i <= n and b ~= delim do -- Scan for delim.
+      i = i + 1
+      b = string.byte(str, i)
+    end
+    local w = string.sub(str, s, i - 1)
+    if w and #w > 0 then
+      table.insert(r, w)
+    end
+  end
+  return r
+end
+
+------------------------------------------------------
+
 -- Run all functions that have a "TEST_" prefix.
 --
 function TESTALL()
@@ -150,6 +184,35 @@ function TESTALL()
     end
   end
   print("TESTALL - done")
+end
+
+function TEST_split()
+  r = split("")
+  assert(#r == 0)
+  r = split("a")
+  assert(#r == 1)
+  assert(r[1] == "a")
+  r = split("aa")
+  assert(#r == 1)
+  assert(r[1] == "aa")
+  r = split(" a ")
+  assert(#r == 1)
+  assert(r[1] == "a")
+  r = split(" aa ")
+  assert(#r == 1)
+  assert(r[1] == "aa")
+  r = split("a b")
+  assert(#r == 2)
+  assert(r[1] == "a")
+  assert(r[2] == "b")
+  r = split(" a  b ")
+  assert(#r == 2)
+  assert(r[1] == "a")
+  assert(r[2] == "b")
+  r = split("  aa   bb  ")
+  assert(#r == 2)
+  assert(r[1] == "aa")
+  assert(r[2] == "bb")
 end
 
 function TEST_array_iter()
