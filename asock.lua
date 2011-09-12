@@ -118,6 +118,7 @@ end
 
 local function send(actor_addr, skt, data, from, to)
   from = from or 1
+
   local lastIndex = from - 1
 
   repeat

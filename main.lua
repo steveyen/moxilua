@@ -197,7 +197,7 @@ ambox.spawn(upstream_accept, server,
 
 print("loop")
 
-local d = false
+local d = true
 local i = 0
 
 while true do
