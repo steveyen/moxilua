@@ -10,6 +10,9 @@ function upstream_session_memcached_ascii(self_addr, env, upstream_skt)
   while req do
     req = asock.recv(self_addr, upstream_skt, "*l")
     if req then
+      -- Using util/split() seems slightly slower than string.gfind()
+      -- on simplistic tests.
+      --
       local itr = string.gfind(req, "%S+")
       local cmd = itr()
       if cmd and string.len(cmd) > 1 then
