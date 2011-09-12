@@ -129,7 +129,7 @@ end
 
 local function run_main_todos(force)
   -- Check first if we're the main thread.
-  if (coroutine.running() == nil) or force then
+  if force or (coroutine.running() == nil) then
     local todo = nil
     repeat
       todo = table.remove(main_todos, 1)
@@ -256,7 +256,7 @@ end
 --
 local function loop_until_empty(force)
   -- Check first if we're the main thread.
-  if (coroutine.running() == nil) or force then
+  if force or (coroutine.running() == nil) then
     stats.tot_loop = stats.tot_loop + 1
 
     local delivered = 0
@@ -266,7 +266,7 @@ local function loop_until_empty(force)
 
       local resends = {}
 
-      while run_main_todos() and
+      while run_main_todos(true) and
             (#envelopes > 0) do
         -- TODO: Simple timings show that table.remove() is faster
         -- than an explicit index-based walk, but should revisit as
@@ -332,19 +332,16 @@ end
 -- actor only accepts certain messages, when the opt_filter(...)
 -- returns true.
 --
-local function recv(opt_filter)
-  local coro = coroutine.running()
-  if coro then
-    -- The opt_filter might be nil, which is fine.
-    --
-    map_addr_to_mbox[coroutine_addr(coro)].filter = opt_filter
+local function recv(opt_filter, addr)
+  addr = addr or self_addr()
 
-    stats.tot_recv = stats.tot_recv + 1
+  -- The opt_filter might be nil, which is fine.
+  --
+  map_addr_to_mbox[addr].filter = opt_filter
 
-    return coroutine.yield()
-  end
+  stats.tot_recv = stats.tot_recv + 1
 
-  return nil
+  return coroutine.yield()
 end
 
 ----------------------------------------

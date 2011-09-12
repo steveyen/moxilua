@@ -18,11 +18,17 @@ function player(self_addr, name, n, max)
   end
 end
 
-mike_addr = ambox.spawn(player, "Mike", 1, 2000000)
-mary_addr = ambox.spawn(player, "Mary", 1, 2000000)
+m = 2000000
+
+mike_addr = ambox.spawn(player, "Mike", 1, m)
+mary_addr = ambox.spawn(player, "Mary", 1, m)
+
+t_start = os.clock()
 
 ambox.send(mike_addr, { from = mary_addr, hits = 1 })
 n_sends = n_sends + 1
+
+t_end = os.clock()
 
 print(n_sends, n_recvs)
 assert(n_sends == n_recvs, n_sends, n_recvs)
@@ -30,4 +36,5 @@ assert(n_sends == n_recvs, n_sends, n_recvs)
 s = ambox.stats()
 for k, v in pairs(s) do print(k, v) end
 
+print("msgs/sec: ", n_recvs / (t_end - t_start))
 

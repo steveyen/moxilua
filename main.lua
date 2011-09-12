@@ -201,7 +201,7 @@ local d = false
 local i = 0
 
 while true do
-  ambox.loop_until_empty()
+  ambox.loop_until_empty(true)
   asock.step()
 
   if d and (i % 20000 == 0) then
