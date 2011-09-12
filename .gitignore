@@ -1,4 +1,4 @@
-lprof_tmp.*.out
+lprof_tmp.*.out*
 luac.out
 
 
