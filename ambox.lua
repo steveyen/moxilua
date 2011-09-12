@@ -269,7 +269,7 @@ local function loop_until_empty(force)
       while run_main_todos() and
             (#envelopes > 0) do
         -- TODO: Simple timings show that table.remove() is faster
-        -- than an explicit index access, but this needs revisiting.
+        -- than an explicit index-based walk, but should revisit.
         --
         local resend = deliver_envelope(table.remove(envelopes, 1))
         if resend then
