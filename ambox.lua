@@ -280,8 +280,6 @@ local function loop_until_empty(force)
         end
       end
 
-      assert(#envelopes <= 0)
-
       stats.tot_msg_resend = stats.tot_msg_resend + #resends
 
       if #envelopes <= 0 then
