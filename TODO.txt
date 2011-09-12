@@ -1,9 +1,40 @@
-- single threaded.
+# multi-threading.
 
-- ambox message filtering inefficiently resends
-  all filtered-out messages.  It can instead hold aside
-  filtered-out messages until the filter changes.
+Possible design: each worker thread should have its own work queue,
+and can be notified via pipe or socket events by sending threads that
+there's work available.
 
-- only a single message queue rather than per-actor.
+Keep the # of worker threads static.
 
-- more stats needed.
+Threads should only pass serialized, full-copy buffers to each other,
+where the receiving thread takes on buffer memory ownership.
+
+How can an actor on on thread wait for results or messages from actors
+on completely different threads?  Can actors across different threads
+be watching and learn about cross-thread actor death?
+
+Interesting issues - luajit is not multi-thread ready?
+
+lua lanes does not seem with work with luajit.
+
+# luajit limitations?
+
+## 1GB memory limitation?
+   http://lua-users.org/lists/lua-l/2010-11/msg00247.html
+
+## lua's GC not suited to memory intensive usage
+   http://lua-users.org/lists/lua-l/2010-11/msg00245.html
+
+> Also, it's not a good idea to store millions of objects occupying
+> several gigabytes in a single Lua state. The Lua garbage collector
+> is simply not up to the task
+
+Need to use external storage (light/heavy userdata).
+
+# ambox message filtering inefficiently resends all filtered-out
+  messages.  It might instead more efficiently hold aside filtered-out
+  messages until the filter function changes.
+
+# only a single message queue rather than per-actor queue.
+
+# more stats needed.
