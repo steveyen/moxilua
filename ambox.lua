@@ -10,22 +10,20 @@ local function ambox_create()
 
 ----------------------------------------
 
-local stats = {
-  tot_actor_spawn = 0,
-  tot_actor_resume = 0,
-  tot_actor_finish = 0,
-  tot_msg_deliver = 0,
-  tot_msg_resend = 0,
-  tot_send = 0,
-  tot_recv = 0,
-  tot_loop = 0
-}
+local stats = { tot_actor_spawn = 0,
+                tot_actor_resume = 0,
+                tot_actor_finish = 0,
+                tot_msg_deliver = 0,
+                tot_msg_resend = 0,
+                tot_send = 0,
+                tot_recv = 0,
+                tot_loop = 0 }
 
 local map_addr_to_mbox = {} -- Table, key'ed by addr.
 local map_coro_to_addr = {} -- Table, key'ed by coro.
 
 local last_addr  = 0
-local envelopes  = {}
+local envelopes  = {} -- TODO: One day have a queue per actor.
 local main_todos = {} -- Array of closures, to be run on main thread.
 
 local function create_mbox(addr, coro)
@@ -74,7 +72,6 @@ local function register(coro, opt_suffix)
   unregister(map_coro_to_addr[coro])
 
   local addr = next_addr()
-
   if opt_suffix then
     addr = addr .. "." .. opt_suffix
   end
@@ -112,8 +109,6 @@ local function resume(coro, ...)
 
     local ok = coroutine.resume(coro, ...)
     if not ok then
-      -- When running on kahlua.
-      --
       if _G.debug then
         print(_G.debug.traceback(coro))
       end
@@ -175,16 +170,10 @@ local function deliver_envelope(envelope)
       local dest_msg = envelope.dest_msg or {}
 
       if mbox.filter and not mbox.filter(unpack(dest_msg)) then
-        -- Tell our caller to re-send/re-queue the envelope.
-        --
-        return envelope
+        return envelope -- Caller should re-send/queue the envelope.
       end
 
-      -- Since the filter, if any, accepted the message,
-      -- clear it out otherwise other messages might get
-      -- inadvertently filtered.
-      --
-      mbox.filter = nil
+      mbox.filter = nil -- Avoid over-filtering future messages.
 
       if not resume(mbox.coro, unpack(dest_msg)) then
         finish(envelope.dest_addr)
@@ -264,39 +253,27 @@ local function send(dest_addr, ...)
   if dest_addr then
     send_msg(dest_addr, { ... })
   end
-
   loop_until_empty()
 end
 
--- Asynchronous send of variable args as a message, similar to send(),
--- except a tracking addr and message can be supplied.  The tracking
--- addr will be notified with the unpacked track_args if there are
--- problems sending the message to the dest_addr, such as if the
--- destination addr does not represent a live actor.
+-- Like send(), but the track_addr will be notified if there
+-- are problems sending the message to the dest_addr.
 --
 local function send_track(dest_addr, track_addr, track_args, ...)
   if dest_addr then
     send_msg(dest_addr, { ... }, track_addr, track_args)
   end
-
   loop_until_empty()
 end
 
 -- Receive a message (via multi-return-values).
 --
--- An optional opt_filter(...) function can be supplied so that the
--- actor only accepts certain messages, when the opt_filter(...)
--- returns true.
+-- The optional opt_filter function should return true when
+-- a message is acceptable right now.
 --
 local function recv(opt_filter, addr)
-  addr = addr or self_addr()
-
-  -- The opt_filter might be nil, which is fine.
-  --
-  map_addr_to_mbox[addr].filter = opt_filter
-
+  map_addr_to_mbox[addr or self_addr()].filter = opt_filter
   stats.tot_recv = stats.tot_recv + 1
-
   return coroutine.yield()
 end
 
@@ -323,11 +300,11 @@ local function spawn_with(spawner, f, suffix, ...)
   stats.tot_actor_spawn = stats.tot_actor_spawn + 1
 
   table.insert(main_todos,
-    function()
-      if not resume(child_coro) then
-        finish(child_addr)
-      end
-    end)
+               function()
+                 if not resume(child_coro) then
+                   finish(child_addr)
+                 end
+               end)
 
   run_main_todos()
 
@@ -342,38 +319,22 @@ local function spawn(f, ...)
   return spawn_name(f, nil, ...)
 end
 
-----------------------------------------
-
--- Registers a watcher actor to a target actor addr.  A single watcher
+-- Registers a watcher actor on a target actor.  A single watcher
 -- actor can register multiple times on a target actor with different
--- watcher_arg's.  When then target actor dies, the watcher will be
--- notified multiple times via a sent message, once for each call to
--- the original watch().
---
--- A call to the related unwatch() function clears all the
--- registrations for a watcher actor on a target actor.
+-- args.  When then target actor dies, the watcher will be notified,
+-- once for each call to the original watch().
 --
 local function watch(target_addr, watcher_addr, ...)
   watcher_addr = watcher_addr or self_addr()
-  local watcher_arg = { ... }
 
-  if target_addr and watcher_addr then
-    local mbox = map_addr_to_mbox[target_addr]
-    if mbox then
-      local watchers = mbox.watchers
-      if not watchers then
-        watchers = {}
-        mbox.watchers = watchers
-      end
+  local mbox = map_addr_to_mbox[target_addr]
+  if mbox then
+    local w = mbox.watchers or {}
+    mbox.watchers = w
+    local a = w[watcher_addr] or {}
+    w[watcher_addr] = a
 
-      local watcher_args = watchers[watcher_addr]
-      if not watcher_args then
-        watcher_args = {}
-        watchers[watcher_addr] = watcher_args
-      end
-
-      watcher_args[#watcher_args + 1] = watcher_arg
-    end
+    a[#a + 1] = { ... }
   end
 end
 
@@ -385,14 +346,12 @@ end
 local function unwatch(target_addr, watcher_addr)
   watcher_addr = watcher_addr or self_addr()
 
-  if target_addr and watcher_addr then
-    local mbox = map_addr_to_mbox[target_addr]
-    if mbox then
-      local watchers = mbox.watchers
-      if watchers and
-         watchers[watcher_addr] then
-        watchers[watcher_addr] = nil
-      end
+  local mbox = map_addr_to_mbox[target_addr]
+  if mbox then
+    local watchers = mbox.watchers
+    if watchers and
+       watchers[watcher_addr] then
+      watchers[watcher_addr] = nil
     end
   end
 end
