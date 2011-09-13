@@ -4,8 +4,6 @@ local socket = require("socket")
 
 local function asock_create()
 
-----------------------------------------
-
 local reading = {} -- Array of sockets for next select().
 local writing = {} -- Array of sockets for next select().
 
@@ -87,8 +85,6 @@ local function step(timeout)
   return err
 end
 
-------------------------------------------
-
 -- A filter for ambox.recv(), where we only want awake_actor() calls.
 --
 local function filter_skt(s, skt)
@@ -158,16 +154,12 @@ end
 
 ------------------------------------------
 
-return {
-  step = step,
-  recv = recv,
-  send = send,
-  loop_accept = loop_accept
-}
+return { step = step,
+         recv = recv,
+         send = send,
+         loop_accept = loop_accept }
 
 end
-
-------------------------------------------
 
 return asock_create()
 
