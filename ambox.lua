@@ -30,13 +30,11 @@ local last_addr  = 0
 local envelopes  = {}
 local main_todos = {} -- Array of closures, to be run on main thread.
 
-----------------------------------------
-
 local function create_mbox(addr, coro)
   return { -- A mailbox for an actor coroutine.
     addr     = addr,
     coro     = coro,
-    data     = nil, -- User data for this mbox.
+    data     = {},  -- User data for this mbox.
     watchers = nil, -- Array of watcher addresses.
     filter   = nil  -- A filter function passed in during recv()
   }
@@ -45,7 +43,6 @@ end
 local function user_data(addr)
   local mbox = map_addr_to_mbox[addr or self_addr()]
   if mbox then
-    mbox.data = mbox.data or {}
     return mbox.data
   end
 end
