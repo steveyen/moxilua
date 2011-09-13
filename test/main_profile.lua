@@ -21,6 +21,6 @@
 profiler = require("profiler")
 
 profiler.start()
-require("main")
+require("protocol_memcached/main")
 profiler.stop()
 

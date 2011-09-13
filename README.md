@@ -39,7 +39,7 @@ Or to launch a script, use:
 
 To start a server, use:
 
-    lua -l luarocks.require main.lua
+    lua -l luarocks.require protocol_memcached/main.lua
 
 To run client tests, use:
 
