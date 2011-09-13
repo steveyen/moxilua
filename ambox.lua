@@ -1,10 +1,10 @@
 -- ambox - actor mailboxes
 --
 -- simple erlang-like, concurrent-lua-like system,
--- enabling cooperative actor-like application programming.
+-- but simpler, enabling cooperative actor-like programs.
 --
--- for local process only (not distributed), single main thread,
--- based on lua coroutines, with a trampoline-based design.
+-- for local process only (not distributed), single main
+-- thread, based on lua coroutines.
 --
 local function ambox_create()
 
