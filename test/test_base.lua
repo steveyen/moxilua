@@ -32,8 +32,8 @@ function fresh()
 end
 
 function got(...)
-  got_list[#got_list + 1] = arg
-  pa(arg)
+  got_list[#got_list + 1] = { ... }
+  pa({ ... })
 end
 
 ------------------------------------------
@@ -72,12 +72,12 @@ function tree_match(expect, actual)
 end
 
 function expected(...)
-  local expect = arg
+  local expect = { ... }
   if #expect == 1 and type(expect[1]) == 'string' then
     expect = {expect}
   end
 
-  if false then
+  if true then
     p("--------------")
     p("expect")
     pa(expect)
