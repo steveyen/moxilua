@@ -104,12 +104,13 @@ end
 -- Lowest-level asynchronous send of a message.
 --
 local function send_msg(dest_addr, dest_msg, track_addr, track_args)
-  stats.tot_send = stats.tot_send + 1
-
-  table.insert(envelopes, { dest_addr  = dest_addr,
-                            dest_msg   = dest_msg,
-                            track_addr = track_addr,
-                            track_args = track_args })
+  if dest_addr then
+    table.insert(envelopes, { dest_addr  = dest_addr,
+                              dest_msg   = dest_msg,
+                              track_addr = track_addr,
+                              track_args = track_args })
+    stats.tot_send = stats.tot_send + 1
+  end
 end
 
 local function finish(addr) -- Invoked when an actor is done.
@@ -140,7 +141,6 @@ local function deliver_envelope(envelope) -- Must run on main thread.
       if mbox.filter and not mbox.filter(unpack(dest_msg)) then
         return envelope -- Caller should re-send/queue the envelope.
       end
-
       mbox.filter = nil -- Avoid over-filtering future messages.
 
       if not resume(mbox.coro, unpack(dest_msg)) then
@@ -149,15 +149,7 @@ local function deliver_envelope(envelope) -- Must run on main thread.
 
       stats.tot_msg_deliver = stats.tot_msg_deliver + 1
     else
-      -- The destination mbox/coro is gone, probably finished already,
-      -- so send the tracking addr a notification message.
-      --
-      -- We're careful here that there's either a track notification
-      -- or a watcher notification (via finish() above), but not both.
-      --
-      if envelope.track_addr then
-        send_msg(envelope.track_addr, envelope.track_args)
-      end
+      send_msg(envelope.track_addr, envelope.track_args)
     end
   end
 end
@@ -210,9 +202,7 @@ end
 -- process the message immediately before returning.
 --
 local function send(dest_addr, ...)
-  if dest_addr then
-    send_msg(dest_addr, { ... })
-  end
+  send_msg(dest_addr, { ... })
   loop_until_empty()
 end
 
@@ -220,9 +210,7 @@ end
 -- are problems sending the message to the dest_addr.
 --
 local function send_track(dest_addr, track_addr, track_args, ...)
-  if dest_addr then
-    send_msg(dest_addr, { ... }, track_addr, track_args)
-  end
+  send_msg(dest_addr, { ... }, track_addr, track_args)
   loop_until_empty()
 end
 
