@@ -43,21 +43,11 @@ local function create_mbox(addr, coro)
 end
 
 local function user_data(addr)
-  addr = addr or self_addr()
-  if addr then
-    local mbox = map_addr_to_mbox[addr]
-    if mbox then
-      local data = mbox.data
-      if not data then
-        data = {}
-        mbox.data = data
-      end
-
-      return data
-    end
+  local mbox = map_addr_to_mbox[addr or self_addr()]
+  if mbox then
+    mbox.data = mbox.data or {}
+    return mbox.data
   end
-
-  return nil
 end
 
 local function next_addr() -- Generates available mbox / actor addr.
@@ -72,22 +62,14 @@ local function next_addr() -- Generates available mbox / actor addr.
 end
 
 local function coroutine_addr(coro)
-  if coro then
-    return map_coro_to_addr[coro]
-  end
-
-  return nil
+  return map_coro_to_addr[coro]
 end
 
 local function addr_coroutine(addr)
-  if addr then
-    local mbox = map_addr_to_mbox[addr]
-    if mbox then
-      return mbox.coro
-    end
+  local mbox = map_addr_to_mbox[addr]
+  if mbox then
+    return mbox.coro
   end
-
-  return nil
 end
 
 local function self_addr()
@@ -97,12 +79,10 @@ end
 ----------------------------------------
 
 local function unregister(addr)
-  if addr then
-    local mbox = map_addr_to_mbox[addr]
-    if mbox then
-      map_addr_to_mbox[addr] = nil
-      map_coro_to_addr[mbox.coro] = nil
-    end
+  local mbox = map_addr_to_mbox[addr]
+  if mbox then
+    map_addr_to_mbox[addr] = nil
+    map_coro_to_addr[mbox.coro] = nil
   end
 end
 
@@ -161,8 +141,6 @@ local function resume(coro, ...)
 
     return ok
   end
-
-  return false
 end
 
 ----------------------------------------
