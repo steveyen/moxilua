@@ -26,12 +26,9 @@ function host_port(str, default_port)
 
   local port = string.match(str, ":(%d+)")
   if port then
-    port = tonumber(port)
-  else
-    port = default_port
+    return host, tonumber(port)
   end
-
-  return host, port
+  return host, default_port
 end
 
 -- Create a client connection to a "host:port" location.
@@ -52,7 +49,7 @@ function connect(location)
   return host, port, sock, nil
 end
 
--- Groups items in itr by the key returned by key_func(itr).
+-- Groups items in an array by the key returned by key_func(itr).
 --
 function group_by(arr, key_func)
   local groups = {}
