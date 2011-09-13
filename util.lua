@@ -4,8 +4,8 @@
 if _G.sock_recv == nil and
    _G.sock_send == nil and
    _G.asock then
-  function sock_recv(skt, pattern)
-    return asock.recv(ambox.self_addr(), skt, pattern)
+  function sock_recv(skt, pattern, part, partial_ok)
+    return asock.recv(ambox.self_addr(), skt, pattern, part, partial_ok)
   end
 
   function sock_send(skt, data, from, to)

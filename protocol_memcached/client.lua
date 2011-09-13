@@ -24,8 +24,8 @@ memcached_client = {
 --
 if _G.sock_recv == nil and
    _G.sock_send == nil then
-  sock_recv = function(skt, pattern)
-    return skt:receive(pattern or "*l")
+  sock_recv = function(skt, pattern, part)
+    return skt:receive(pattern or "*l", part)
   end
 
   sock_send = function(skt, data, from, to)

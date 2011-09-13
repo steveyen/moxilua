@@ -93,7 +93,7 @@ end
 
 ------------------------------------------
 
-local function recv(actor_addr, skt, pattern, part)
+local function recv(actor_addr, skt, pattern, part, partial_ok)
   local s, err
 
   repeat
@@ -101,7 +101,11 @@ local function recv(actor_addr, skt, pattern, part)
     skt_unwait(skt, writing, reverse_w)
 
     s, err, part = skt:receive(pattern, part)
-    if s or err ~= "timeout" then
+    if s or err ~= "timeout" or
+       (partial_ok and
+        part ~= "" and
+        part ~= nil and
+        type(pattern) == "number") then
       return s, err, part
     end
 
