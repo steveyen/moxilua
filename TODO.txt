@@ -37,4 +37,11 @@ Need to use external storage (light/heavy userdata).
 
 # only a single message queue rather than per-actor queue.
 
+# actors starvation
+
+A really busy actor can starve other actors?
+
+Needs to politely yield() every once in awhile, and need to manage an
+immediately runnable actors list.
+
 # more stats needed.
