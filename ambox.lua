@@ -21,8 +21,6 @@ local stats = {
   tot_loop = 0
 }
 
--- Map actor addresses to actor coroutines and vice-versa.
---
 local map_addr_to_mbox = {} -- Table, key'ed by addr.
 local map_coro_to_addr = {} -- Table, key'ed by coro.
 
@@ -58,19 +56,8 @@ local function next_addr() -- Generates available mbox / actor addr.
   return curr_addr
 end
 
-local function coroutine_addr(coro)
-  return map_coro_to_addr[coro]
-end
-
-local function addr_coroutine(addr)
-  local mbox = map_addr_to_mbox[addr]
-  if mbox then
-    return mbox.coro
-  end
-end
-
 local function self_addr()
-  return coroutine_addr(coroutine.running())
+  return map_coro_to_addr[coroutine.running()]
 end
 
 ----------------------------------------
@@ -96,10 +83,6 @@ local function register(coro, opt_suffix)
   map_coro_to_addr[coro] = addr
 
   return addr
-end
-
-local function is_registered(addr)
-  return map_addr_to_mbox[addr] ~= nil
 end
 
 ----------------------------------------
@@ -155,9 +138,7 @@ end
 
 ----------------------------------------
 
--- Invoked when an actor is done.
---
-local function finish(addr)
+local function finish(addr) -- Invoked when an actor is done.
   local watchers = nil
 
   local mbox = map_addr_to_mbox[addr]
@@ -436,27 +417,12 @@ return {
   spawn      = spawn,
   spawn_name = spawn_name,
   spawn_with = spawn_with,
+  self_addr  = self_addr,
   user_data  = user_data,
   watch      = watch,
   unwatch    = unwatch,
 
-  --------------------------------
-
-  -- register   = register,
-  -- unregister = unregister,
-  is_registered = is_registered,
-
-  --------------------------------
-
-  coroutine_addr = coroutine_addr,
-  addr_coroutine = addr_coroutine,
-  self_addr      = self_addr,
-
-  --------------------------------
-
   loop_until_empty = loop_until_empty,
-
-  --------------------------------
 
   stats = stats_snapshot
 }
