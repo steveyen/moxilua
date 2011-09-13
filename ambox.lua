@@ -1,14 +1,10 @@
 -- ambox - actor mailboxes
 --
--- simple erlang-like, concurrent-lua-like system,
--- but simpler, enabling cooperative actor-like programs.
---
--- for local process only (not distributed), single main
--- thread, based on lua coroutines.
+-- Simple erlang-like system, enabling cooperative actor-like
+-- programs.  Works for local process only (not distributed),
+-- with a single main thread, based on lua coroutines.
 --
 local function ambox_create()
-
-----------------------------------------
 
 local stats = { tot_actor_spawn = 0,
                 tot_actor_resume = 0,
@@ -26,14 +22,12 @@ local last_addr  = 0
 local envelopes  = {} -- TODO: One day have a queue per actor.
 local main_todos = {} -- Array of closures, to be run on main thread.
 
-local function create_mbox(addr, coro)
-  return { -- A mailbox for an actor coroutine.
-    addr     = addr,
-    coro     = coro,
-    data     = {},  -- User data for this mbox.
-    watchers = nil, -- Array of watcher addresses.
-    filter   = nil  -- A filter function passed in during recv()
-  }
+local function create_mbox(addr, coro) -- Mailbox for actor coroutine.
+  return { addr     = addr,
+           coro     = coro,
+           data     = {},   -- User data for this mbox.
+           watchers = nil,  -- Array of watcher addresses.
+           filter   = nil } -- A function passed in during recv()
 end
 
 local function user_data(addr)
@@ -44,14 +38,8 @@ local function user_data(addr)
 end
 
 local function next_addr() -- Generates available mbox / actor addr.
-  local curr_addr
-
-  repeat
-    last_addr = last_addr + 1
-    curr_addr = tostring(last_addr)
-  until map_addr_to_mbox[curr_addr] == nil
-
-  return curr_addr
+  last_addr = last_addr + 1
+  return tostring(last_addr)
 end
 
 local function self_addr()
@@ -84,8 +72,7 @@ end
 
 ----------------------------------------
 
-local function run_main_todos(force)
-  -- Check first if we're the main thread.
+local function run_main_todos(force) -- Have force or main thread.
   if force or (coroutine.running() == nil) then
     local todo = nil
     repeat
@@ -99,11 +86,7 @@ local function run_main_todos(force)
   return true
 end
 
-----------------------------------------
-
 local function resume(coro, ...)
-  -- TODO: Do we need xpcall around resume()?
-  --
   if coro and coroutine.status(coro) ~= 'dead' then
     stats.tot_actor_resume = stats.tot_actor_resume + 1
 
@@ -118,8 +101,6 @@ local function resume(coro, ...)
   end
 end
 
-----------------------------------------
-
 -- Lowest-level asynchronous send of a message.
 --
 local function send_msg(dest_addr, dest_msg, track_addr, track_args)
@@ -131,40 +112,27 @@ local function send_msg(dest_addr, dest_msg, track_addr, track_args)
                             track_args = track_args })
 end
 
-----------------------------------------
-
 local function finish(addr) -- Invoked when an actor is done.
   local watchers = nil
 
   local mbox = map_addr_to_mbox[addr]
   if mbox then
-    watchers = mbox.watchers
-
     stats.tot_actor_finish = stats.tot_actor_finish + 1
+
+    watchers = mbox.watchers
   end
 
   unregister(addr)
 
-  -- Notify watchers of a finished actor.
-  --
-  if watchers then
-    for watcher_addr, watcher_args in pairs(watchers) do
-      if watcher_addr then
-        for i = 1, #watcher_args do
-          send_msg(watcher_addr, watcher_args[i])
-        end
-      end
+  for watcher_addr, watcher_args in pairs(watchers or {}) do
+    for i = 1, #watcher_args do
+      send_msg(watcher_addr, watcher_args[i])
     end
   end
 end
 
-----------------------------------------
-
-local function deliver_envelope(envelope)
-  -- Must be invoked on main thread.
-  --
-  if envelope and
-     envelope.dest_addr then
+local function deliver_envelope(envelope) -- Must run on main thread.
+  if envelope then
     local mbox = map_addr_to_mbox[envelope.dest_addr]
     if mbox then
       local dest_msg = envelope.dest_msg or {}
@@ -196,23 +164,21 @@ end
 
 ----------------------------------------
 
--- Process all envelopes, requeuing any envelopes that did not
--- pass their mbox.filter and which need resending.
+-- Process all envelopes, requeuing any envelopes that did
+-- not pass their mbox.filter and which need resending.
 --
 local function loop_until_empty(force)
-  -- Check first if we're the main thread.
   if force or (coroutine.running() == nil) then
     stats.tot_loop = stats.tot_loop + 1
 
-    local delivered = 0
+    local resends
+    local delivered
 
     repeat
+      resends = {}
       delivered = 0
 
-      local resends = {}
-
-      while run_main_todos(true) and
-            (#envelopes > 0) do
+      while run_main_todos(true) and (#envelopes > 0) do
         -- TODO: Simple timings show that table.remove() is faster
         -- than an explicit index-based walk, but should revisit as
         -- the current tests likely don't drive long envelope queues.
@@ -227,12 +193,8 @@ local function loop_until_empty(force)
 
       stats.tot_msg_resend = stats.tot_msg_resend + #resends
 
-      if #envelopes <= 0 then
-        envelopes = resends
-      else
-        for i = 1, #resends do
-          envelopes[#envelopes + 1] = resends[i]
-        end
+      for i = 1, #resends do
+        envelopes[#envelopes + 1] = resends[i]
       end
     until (#envelopes <= 0 or delivered <= 0)
   end
@@ -240,8 +202,6 @@ end
 
 ----------------------------------------
 
--- Asynchronous send of variable args as a message.
---
 local function send_later(dest_addr, ...)
   send_msg(dest_addr, { ... })
 end
@@ -266,10 +226,10 @@ local function send_track(dest_addr, track_addr, track_args, ...)
   loop_until_empty()
 end
 
--- Receive a message (via multi-return-values).
+-- Receive a message via multi-return-values.
 --
--- The optional opt_filter function should return true when
--- a message is acceptable right now.
+-- The optional opt_filter function should return true
+-- when a message is acceptable for recv()'ing right now.
 --
 local function recv(opt_filter, addr)
   map_addr_to_mbox[addr or self_addr()].filter = opt_filter
@@ -279,33 +239,23 @@ end
 
 ----------------------------------------
 
--- Spawn an actor coroutine, whose function is f.
---
 local function spawn_with(spawner, f, suffix, ...)
-  local child_coro = nil
+  local child_arg  = { ... }
   local child_addr = nil
-  local child_arg = { ... }
-  local child_fun =
-    function()
-      -- TODO: Do we need xpcall around f()?
-      --
-      f(child_addr, unpack(child_arg))
+  local child_coro = spawner(function()
+                               f(child_addr, unpack(child_arg))
+                               finish(child_addr)
+                             end)
 
-      finish(child_addr)
-    end
-
-  child_coro = spawner(child_fun)
   child_addr = register(child_coro, suffix)
 
   stats.tot_actor_spawn = stats.tot_actor_spawn + 1
 
-  table.insert(main_todos,
-               function()
-                 if not resume(child_coro) then
-                   finish(child_addr)
-                 end
-               end)
-
+  table.insert(main_todos, function()
+                             if not resume(child_coro) then
+                               finish(child_addr)
+                             end
+                           end)
   run_main_todos()
 
   return child_addr
@@ -360,9 +310,7 @@ end
 
 local function stats_snapshot()
   local rv = { cur_envelopes = #envelopes }
-  for k, v in pairs(stats) do
-    rv[k] = stats[k]
-  end
+  for k, v in pairs(stats) do rv[k] = stats[k] end
   return rv
 end
 
@@ -387,7 +335,5 @@ return {
 }
 
 end
-
-----------------------------------------
 
 return ambox_create()
