@@ -90,9 +90,10 @@ local function resume(coro, ...)
   if coro and coroutine.status(coro) ~= 'dead' then
     stats.tot_actor_resume = stats.tot_actor_resume + 1
 
-    local ok = coroutine.resume(coro, ...)
+    local ok, err = coroutine.resume(coro, ...)
     if not ok then
       if _G.debug then
+        print(err)
         print(_G.debug.traceback(coro))
       end
     end
