@@ -141,30 +141,10 @@ end
 -- Repeated runs of the delimiter character are 'collapsed'.
 -- That is, split("  hello  world  ") == split("hello world").
 --
-function split(str, delim)
-  delim = delim or 32
-  if type(delim) == "string" then
-    delim = string.byte(delim, 1)
-  end
-  local r = {} -- Return array.
-  local s = 1  -- Index of first non-delim character.
-  local i = 1
-  local n = #str
-  while i <= n do
-    local b = string.byte(str, i)
-    while i <= n and b == delim do -- Scan for non-delim.
-      i = i + 1
-      b = string.byte(str, i)
-    end
-    s = i
-    while i <= n and b ~= delim do -- Scan for delim.
-      i = i + 1
-      b = string.byte(str, i)
-    end
-    local w = string.sub(str, s, i - 1)
-    if w and #w > 0 then
-      table.insert(r, w)
-    end
+function split(str)
+  local r = {}
+  for w in string.gmatch(str, "%S+") do
+    table.insert(r, w)
   end
   return r
 end
