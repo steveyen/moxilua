@@ -103,24 +103,24 @@ local function send_res_headers(res)
   end
   res.status_code = res.status_code or 200
   res.status_line = res.status_line or status_line[res.status_code]
-  res.req.skt:send(res.status_line)
+  sock_send(res.req.skt, res.status_line)
   for name, value in pairs (res.headers) do
     if type(value) == "table" then
       for _, v in ipairs(value) do
-        res.req.skt:send(string.format("%s: %s\r\n", name, v))
+        sock_send(res.req.skt, string.format("%s: %s\r\n", name, v))
       end
     else
-      res.req.skt:send(string.format("%s: %s\r\n", name, value))
+      sock_send(res.req.skt, string.format("%s: %s\r\n", name, value))
     end
   end
-  res.req.skt:send("\r\n")
+  sock_send(res.req.skt, "\r\n")
   res.headers_sent = true
 end
 
 local function send_res_data(res, data)
   send_res_headers(res)
   if data then
-    res.req.skt:send(data)
+    sock_send(res.req.skt, data)
   end
   return true
 end
