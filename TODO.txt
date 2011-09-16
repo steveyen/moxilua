@@ -44,4 +44,6 @@ A really busy actor can starve other actors?
 Needs to politely yield() every once in awhile, and need to manage an
 immediately runnable actors list.
 
+# explicit actor yield() API
+
 # more stats needed.

@@ -5,7 +5,7 @@ asock = require('asock')
 
 require('util')
 
-function http_server_create()
+function http_server_module()
 
 -- Parts originally from...
 --  Javier Guerra, Andre Carregal, and others.
@@ -166,5 +166,5 @@ return {
 
 end
 
-return http_server_create()
+return http_server_module()
 
