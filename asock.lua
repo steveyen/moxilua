@@ -156,11 +156,38 @@ local function loop_accept(actor_addr, skt, handler, timeout)
   until false
 end
 
+local wrap_mt = {
+  __index = {
+    send = function(self, data, from, to)
+             return send(ambox.self_addr(), self.skt, data, from, to)
+           end,
+    receive = function(self, pattern, part)
+                return recv(ambox.self_addr(), self.skt, pattern, part)
+              end,
+    flush       = function(self) return self.skt:flush() end,
+    close       = function(self) return self.skt:close() end,
+    shutdown    = function(self) return self.skt:shutdown() end,
+    setoption   = function(self, option, value)
+                    return self.skt:setoption(option, value)
+                  end,
+    settimeout  = function(self, time, mode)
+                    return self.skt:settimeout(time, mode)
+                  end,
+    getpeername = function(self) return self.skt:getpeername() end,
+    getsockname = function(self) return self.skt:getsockname() end,
+    getstats    = function(self) return self.skt:getstats() end,
+}}
+
+local function wrap(skt)
+  return setmetatable({ skt = skt }, wrap_mt)
+end
+
 ------------------------------------------
 
 return { step = step,
          recv = recv,
          send = send,
+         wrap = wrap,
          loop_accept = loop_accept }
 
 end
