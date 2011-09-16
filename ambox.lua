@@ -4,7 +4,7 @@
 -- programs.  Works for local process only (not distributed),
 -- with a single main thread, based on lua coroutines.
 --
-local function ambox_create()
+function ambox_module()
 
 local stats = { tot_actor_spawn = 0,
                 tot_actor_resume = 0,
@@ -325,4 +325,4 @@ return {
 
 end
 
-return ambox_create()
+return ambox_module()

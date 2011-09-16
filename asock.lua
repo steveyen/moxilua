@@ -1,8 +1,8 @@
 -- Integration of ambox with sockets.
 --
-local socket = require("socket")
+function asock_module()
 
-local function asock_create()
+local socket = require("socket")
 
 local reading = {} -- Array of sockets for next select().
 local writing = {} -- Array of sockets for next select().
@@ -165,5 +165,5 @@ return { step = step,
 
 end
 
-return asock_create()
+return asock_module()
 
