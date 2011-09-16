@@ -11,6 +11,7 @@ function hello(req, res)
   return res.send_res_data([[<html>
 <body>
 hello <b>world</b>
+]] .. socket.gettime() .. [[
 </body>
 </html>]])
 end

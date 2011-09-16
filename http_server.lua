@@ -62,7 +62,7 @@ local status_line = {
 local function read_cmd(skt, cmd)
   local err
   cmd = cmd or {}
-  cmd.line, err = sock_recv(skt)
+  cmd.line, err = skt:receive()
   if not cmd.line then
     return nil
   end
@@ -76,7 +76,7 @@ local function read_headers(skt, headers)
   local prev
   headers = headers or {}
   while true do
-    local line, err = sock_recv(skt)
+    local line, err = skt:receive()
     if (not line or line == "") then
       return headers
     end
@@ -103,24 +103,24 @@ local function send_res_headers(res)
   end
   res.status_code = res.status_code or 200
   res.status_line = res.status_line or status_line[res.status_code]
-  sock_send(res.req.skt, res.status_line)
+  res.req.skt:send(res.status_line)
   for name, value in pairs (res.headers) do
     if type(value) == "table" then
       for _, v in ipairs(value) do
-        sock_send(res.req.skt, string.format("%s: %s\r\n", name, v))
+        res.req.skt:send(string.format("%s: %s\r\n", name, v))
       end
     else
-      sock_send(res.req.skt, string.format("%s: %s\r\n", name, value))
+      res.req.skt:send(string.format("%s: %s\r\n", name, value))
     end
   end
-  sock_send(res.req.skt, "\r\n")
+  res.req.skt:send("\r\n")
   res.headers_sent = true
 end
 
 local function send_res_data(res, data)
   send_res_headers(res)
   if data then
-    sock_send(res.req.skt, data)
+    res.req.skt:send(data)
   end
   return true
 end
@@ -151,6 +151,7 @@ end
 local function do_accept(acceptor_addr, acceptor_skt, handler)
   asock.loop_accept(acceptor_addr, acceptor_skt,
                     function(skt)
+                      skt = asock.wrap(skt)
                       skt:setoption('tcp-nodelay', true)
                       skt:settimeout(0)
                       ambox.spawn_name(do_req, "http", skt, handler)
