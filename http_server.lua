@@ -128,7 +128,6 @@ end
 ----------------------------------------
 
 local function do_req(skt, handler)
-  local req_addr = ambox.self_addr()
   local srv, port = skt:getsockname()
   local req, res
   repeat
