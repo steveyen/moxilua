@@ -28,7 +28,7 @@ while true do
   ambox.loop_until_empty(true)
   asock.step()
 
-  if d and (i % 20000 == 0) then
+  if d and (i % 20 == 0) then
     for k, v in pairs(ambox.stats()) do print(k, v) end
     print("")
   end

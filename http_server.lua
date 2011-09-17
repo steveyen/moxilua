@@ -127,7 +127,8 @@ end
 
 ----------------------------------------
 
-local function do_req(req_addr, skt, handler)
+local function do_req(skt, handler)
+  local req_addr = ambox.self_addr()
   local srv, port = skt:getsockname()
   local req, res
   repeat
@@ -148,7 +149,8 @@ local function do_req(req_addr, skt, handler)
   skt:close()
 end
 
-local function do_accept(acceptor_addr, acceptor_skt, handler)
+local function do_accept(acceptor_skt, handler)
+  local acceptor_addr = ambox.self_addr()
   asock.loop_accept(acceptor_addr, acceptor_skt,
                     function(skt)
                       skt = asock.wrap(skt)
