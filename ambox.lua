@@ -37,11 +37,6 @@ local function user_data(addr)
   end
 end
 
-local function next_addr() -- Generates available mbox / actor addr.
-  last_addr = last_addr + 1
-  return tostring(last_addr)
-end
-
 local function self_addr()
   return map_coro_to_addr[coroutine.running()]
 end
@@ -59,7 +54,8 @@ end
 local function register(coro, opt_suffix)
   unregister(map_coro_to_addr[coro])
 
-  local addr = next_addr()
+  last_addr = last_addr + 1
+  local addr = tostring(last_addr)
   if opt_suffix then
     addr = addr .. "." .. opt_suffix
   end
