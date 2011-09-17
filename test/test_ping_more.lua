@@ -3,7 +3,8 @@ ambox = require('ambox')
 local n_sends = 0
 local n_recvs = 0
 
-function player(self_addr, name, n, max)
+function player(name, n, max)
+  local self_addr = ambox.self_addr()
   while true do
     ball = ambox.recv()
     n_recvs = n_recvs + 1

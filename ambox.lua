@@ -232,7 +232,7 @@ local function spawn_with(spawner, actor_func, suffix, ...)
   local child_arg  = { ... }
   local child_addr = nil
   local child_coro = spawner(function()
-                               actor_func(child_addr, unpack(child_arg))
+                               actor_func(unpack(child_arg))
                                finish(child_addr)
                              end)
 

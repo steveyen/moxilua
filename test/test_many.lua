@@ -2,7 +2,8 @@ ambox = require('ambox')
 
 times = 100000
 
-function node(self_addr, next_addr, n)
+function node(next_addr, n)
+  local self_addr = ambox.self_addr()
   -- print("node " .. self_addr .. " --> " .. next_addr)
 
   while true do

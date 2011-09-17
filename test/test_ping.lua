@@ -1,6 +1,7 @@
 ambox = require('ambox')
 
-function player(self_addr, name)
+function player(name)
+  local self_addr = ambox.self_addr()
   while true do
     ball = ambox.recv()
     print(name .. " got ball, hits " .. ball.hits)

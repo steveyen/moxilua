@@ -2,7 +2,8 @@ ambox = require('ambox')
 
 p = print
 
-function a1(self_addr, a, b, c)
+function a1(a, b, c)
+  local self_addr = ambox.self_addr()
   print("a1", self_addr, a, b, c)
 
   while true do
@@ -18,7 +19,8 @@ ambox.send(a1_addr, 2, 3, 4)
 
 ------------------------------------------
 
-function a2(self_addr)
+function a2()
+  local self_addr = ambox.self_addr()
   print("a2", self_addr)
 
   while true do
@@ -44,7 +46,8 @@ ambox.send(a2_addr, 5)
 
 ------------------------------------------
 
-function a3(self_addr)
+function a3()
+  local self_addr = ambox.self_addr()
   print("a3", self_addr)
 
   times = ambox.recv()
@@ -61,7 +64,8 @@ ambox.send(a3_addr, 6)
 
 ------------------------------------------
 
-function a4(self_addr, name)
+function a4(name)
+  local self_addr = ambox.self_addr()
   print("a4", self_addr)
 
   while true do
