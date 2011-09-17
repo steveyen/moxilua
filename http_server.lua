@@ -1,11 +1,16 @@
-socket = require('socket')
+function http_server_module(socket, ambox, asock)
 
-ambox = require('ambox')
-asock = require('asock')
+socket = socket or require('socket')
+ambox  = ambox  or require('ambox')
+asock  = asock  or require('asock')
 
-require('util')
-
-function http_server_module()
+local function split(str)
+  local r = {}
+  for w in string.gmatch(str, "%S+") do
+    table.insert(r, w)
+  end
+  return r
+end
 
 -- Parts originally from...
 --  Javier Guerra, Andre Carregal, and others.
