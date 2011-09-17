@@ -8,7 +8,8 @@ require('util')
 http_server = require('http_server')
 
 function hello(req, res)
-  return res.send_res_data([[<html>
+  return res.send_res_data(
+[[<html>
 <body>
 hello <b>world</b>
 ]] .. socket.gettime() .. [[
