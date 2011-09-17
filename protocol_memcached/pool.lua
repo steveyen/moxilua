@@ -4,7 +4,8 @@
 local function spawn_downstream(location, done_func)
   local host, port, dconn, err = connect(location)
 
-  local function downstream(self_addr)
+  local function downstream()
+    local self_addr = ambox.self_addr()
     while dconn do
       local what, notify_addr, response, handler, args, notify_data = ambox.recv()
 

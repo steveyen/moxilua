@@ -36,7 +36,9 @@ local dict = { tbl = {} }
 
 local UPSTREAM_SESSION = "US"
 
-function upstream_accept(acceptor_addr, server_skt, sess_actor, env)
+function upstream_accept(server_skt, sess_actor, env)
+  local acceptor_addr = ambox.self_addr()
+
   local session_handler = function(upstream_skt)
     upstream_skt:setoption('tcp-nodelay', true)
     upstream_skt:settimeout(0)

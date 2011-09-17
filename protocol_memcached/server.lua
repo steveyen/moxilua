@@ -5,7 +5,8 @@ memcached_server = {
 
 ------------------------------------------------------
 
-function upstream_session_memcached_ascii(self_addr, env, upstream_skt)
+function upstream_session_memcached_ascii(env, upstream_skt)
+  local self_addr = ambox.self_addr()
   local req = true
   while req do
     req = asock.recv(self_addr, upstream_skt, "*l")
@@ -33,7 +34,8 @@ end
 
 ------------------------------------------------------
 
-function upstream_session_memcached_binary(self_addr, env, upstream_skt)
+function upstream_session_memcached_binary(env, upstream_skt)
+  local self_addr = ambox.self_addr()
   local mpb = memcached_protocol_binary
   local req = true
   local err, key, ext, data
