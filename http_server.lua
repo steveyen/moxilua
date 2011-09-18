@@ -123,6 +123,10 @@ local function send_res_headers(res)
 end
 
 local function send_res_data(res, data)
+  data = tostring(data)
+  if not res.headers_sent then
+    res.headers['Content-Length'] = #data
+  end
   send_res_headers(res)
   if data then
     res.req.skt:send(data)

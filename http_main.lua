@@ -17,8 +17,15 @@ hello <b>world</b>
 </html>]])
 end
 
+function hello_text(req, res)
+  res.headers['Content-Type'] = 'text/plain'
+  return res.send_res_data(socket.gettime())
+end
+
 ambox.spawn(http_server.do_accept,
             socket.bind("127.0.0.1", 12300), hello)
+ambox.spawn(http_server.do_accept,
+            socket.bind("127.0.0.1", 12301), hello_text)
 
 print("loop")
 
