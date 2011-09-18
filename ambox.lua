@@ -14,7 +14,7 @@ local stats = { tot_actor_spawn = 0,
                 tot_send = 0,
                 tot_recv = 0,
                 tot_yield = 0,
-                tot_loop = 0 }
+                tot_cycle = 0 }
 
 local map_addr_to_mbox = {} -- Table, key'ed by addr.
 local map_coro_to_addr = {} -- Table, key'ed by coro.
@@ -134,9 +134,9 @@ end
 -- Process all envelopes, requeuing any envelopes that did
 -- not pass their mbox.filter and which need resending.
 --
-local function loop_until_empty()
-  if coroutine.running() == nil then -- Only when main thread.
-    stats.tot_loop = stats.tot_loop + 1
+local function cycle(force)
+  if force or coroutine.running() == nil then -- Only when main thread.
+    stats.tot_cycle = stats.tot_cycle + 1
 
     local resends
     local delivered
@@ -175,15 +175,15 @@ end
 
 local function send(dest_addr, ...)
   send_msg(dest_addr, { ... }) -- Unlike send_later(), we may eagerly
-  loop_until_empty()           -- process the message now, which can
-end                            -- help for main thread sends().
+  cycle()                      -- cycle messages now, which can help
+end                            -- for sends() from the main thread.
 
 -- Like send(), but the track_addr will be notified if there
 -- are problems sending the message to the dest_addr.
 --
 local function send_track(dest_addr, track_addr, track_args, ...)
   send_msg(dest_addr, { ... }, track_addr, track_args)
-  loop_until_empty()
+  cycle()
 end
 
 -- Receive a message via multi-return-values. Optional opt_filter
@@ -285,24 +285,20 @@ end
 
 ----------------------------------------
 
-return {
-  recv       = recv,
-  send       = send,
-  send_later = send_later,
-  send_track = send_track,
-  spawn      = spawn,
-  spawn_name = spawn_name,
-  spawn_with = spawn_with,
-  self_addr  = self_addr,
-  user_data  = user_data,
-  watch      = watch,
-  unwatch    = unwatch,
-  yield      = yield,
-
-  loop_until_empty = loop_until_empty,
-
-  stats = stats_snapshot
-}
+return { cycle      = cycle,
+         recv       = recv,
+         send       = send,
+         send_later = send_later,
+         send_track = send_track,
+         spawn      = spawn,
+         spawn_name = spawn_name,
+         spawn_with = spawn_with,
+         self_addr  = self_addr,
+         user_data  = user_data,
+         watch      = watch,
+         unwatch    = unwatch,
+         yield      = yield,
+         stats      = stats_snapshot }
 
 end
 

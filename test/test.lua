@@ -82,7 +82,7 @@ ambox.send(a4_addr, 2)
 
 ------------------------------------------
 
-ambox.loop_until_empty()
+ambox.cycle()
 
 s = ambox.stats()
 for k, v in pairs(s) do print(k, v) end
