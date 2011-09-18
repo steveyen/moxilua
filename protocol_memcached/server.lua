@@ -9,7 +9,7 @@ function upstream_session_memcached_ascii(env, upstream_skt)
   local self_addr = ambox.self_addr()
   local req = true
   while req do
-    req = asock.recv(self_addr, upstream_skt, "*l")
+    req = asock.recv(self_addr, upstream_skt)
     if req then
       -- Using util/split() seems slightly slower than string.gfind()
       -- on simplistic tests.
