@@ -65,10 +65,7 @@ end
 -- Lowest level asynchronous send of a message.
 --
 local function send_msg(dest_addr, dest_msg, track_addr, track_args)
-  table.insert(envelopes, { dest_addr  = dest_addr,
-                            dest_msg   = dest_msg,
-                            track_addr = track_addr,
-                            track_args = track_args })
+  table.insert(envelopes, { dest_addr, dest_msg, track_addr, track_args })
   stats.tot_send = stats.tot_send + 1
 end
 
@@ -117,9 +114,10 @@ end
 
 local function deliver_envelope(envelope) -- Must run on main thread.
   if envelope then
-    local mbox = map_addr_to_mbox[envelope.dest_addr]
+    local dest_addr, dest_msg, track_addr, track_args = unpack(envelope)
+    local mbox = map_addr_to_mbox[dest_addr]
     if mbox then
-      local dest_msg = envelope.dest_msg or {}
+      dest_msg = dest_msg or {}
 
       if mbox.filter and not mbox.filter(unpack(dest_msg)) then
         return envelope -- Caller should re-send/queue the envelope.
@@ -127,12 +125,12 @@ local function deliver_envelope(envelope) -- Must run on main thread.
       mbox.filter = nil -- Avoid over-filtering future messages.
 
       if not resume(mbox.coro, unpack(dest_msg)) then
-        finish(envelope.dest_addr)
+        finish(dest_addr)
       end
 
       stats.tot_msg_deliver = stats.tot_msg_deliver + 1
     else
-      send_msg(envelope.track_addr, envelope.track_args)
+      send_msg(track_addr, track_args)
     end
   end
 end
