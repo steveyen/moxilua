@@ -143,7 +143,7 @@ local function cycle(force)
       resends = {}
       delivered = 0
 
-      while run_main_todos(true) and (#envelopes > 0) do
+      while run_main_todos() and (#envelopes > 0) do
         -- TODO: Simple timings show that table.remove() is faster
         -- than an explicit index-based walk, but should revisit as
         -- the current tests likely don't drive long envelope queues.
