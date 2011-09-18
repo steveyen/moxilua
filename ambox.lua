@@ -31,12 +31,12 @@ local function create_mbox(addr, coro) -- Mailbox for actor coroutine.
            filter   = nil } -- A function passed in during recv()
 end
 
-local function user_data(addr) -- Caller uses the returned table.
-  return map_addr_to_mbox[addr or self_addr()].data
-end
-
 local function self_addr()
   return map_coro_to_addr[coroutine.running()]
+end
+
+local function user_data(addr) -- Caller uses the returned table.
+  return map_addr_to_mbox[addr or self_addr()].data
 end
 
 local function unregister(addr)
@@ -73,11 +73,9 @@ local function resume(coro, ...)
   stats.tot_actor_resume = stats.tot_actor_resume + 1
 
   local ok, err = coroutine.resume(coro, ...)
-  if not ok then
-    if _G.debug then
-      print(err)
-      print(_G.debug.traceback(coro))
-    end
+  if not ok and _G.debug then
+    print(err)
+    print(_G.debug.traceback(coro))
   end
 
   return ok
