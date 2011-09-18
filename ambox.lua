@@ -38,8 +38,6 @@ local function self_addr()
   return map_coro_to_addr[coroutine.running()]
 end
 
-----------------------------------------
-
 local function unregister(addr)
   local mbox = map_addr_to_mbox[addr]
   if mbox then
@@ -49,8 +47,6 @@ local function unregister(addr)
 end
 
 local function register(coro, opt_suffix)
-  assert(coro)
-
   unregister(map_coro_to_addr[coro])
 
   last_addr = last_addr + 1
@@ -67,10 +63,20 @@ end
 
 ----------------------------------------
 
+-- Lowest-level asynchronous send of a message.
+--
+local function send_msg(dest_addr, dest_msg, track_addr, track_args)
+  table.insert(envelopes, { dest_addr  = dest_addr,
+                            dest_msg   = dest_msg,
+                            track_addr = track_addr,
+                            track_args = track_args })
+  stats.tot_send = stats.tot_send + 1
+end
+
 local function run_main_todos(force) -- Have force or main thread.
   if force or (coroutine.running() == nil) then
     if #main_todos > 0 then
-      local t = main_todos -- Snapshot main_todos, to ensure
+      local t = main_todos -- Snapshot/swap main_todos, to ensure
       main_todos = {}      -- that we will finish the loop.
       for i = 1, #t do t[i]() end
     end
@@ -95,31 +101,17 @@ local function resume(coro, ...)
   end
 end
 
--- Lowest-level asynchronous send of a message.
---
-local function send_msg(dest_addr, dest_msg, track_addr, track_args)
-  table.insert(envelopes, { dest_addr  = dest_addr,
-                            dest_msg   = dest_msg,
-                            track_addr = track_addr,
-                            track_args = track_args })
-  stats.tot_send = stats.tot_send + 1
-end
-
 local function finish(addr) -- Invoked when an actor is done.
-  local watchers = nil
-
   local mbox = map_addr_to_mbox[addr]
   if mbox then
+    unregister(addr)
+
     stats.tot_actor_finish = stats.tot_actor_finish + 1
 
-    watchers = mbox.watchers
-  end
-
-  unregister(addr)
-
-  for watcher_addr, watcher_args in pairs(watchers or {}) do
-    for i = 1, #watcher_args do
-      send_msg(watcher_addr, watcher_args[i])
+    for watcher_addr, watcher_args in pairs(mbox.watchers or {}) do
+      for i = 1, #watcher_args do
+        send_msg(watcher_addr, watcher_args[i])
+      end
     end
   end
 end
