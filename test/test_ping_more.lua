@@ -6,13 +6,13 @@ local n_recvs = 0
 function player(name, n, max)
   local self_addr = ambox.self_addr()
   while true do
-    ball = ambox.recv()
+    from, hits = ambox.recv()
     n_recvs = n_recvs + 1
-    -- print(name .. " got ball, hits " .. ball.hits)
+    -- print(name .. " got ball, hits " .. hits)
 
-    if ball.hits <= max then
+    if hits <= max then
       for i = 1, n do
-        ambox.send_later(ball.from, { from = self_addr, hits = ball.hits + 1 })
+        ambox.send_later(from, self_addr, hits + 1)
         n_sends = n_sends + 1
       end
     end
@@ -26,7 +26,7 @@ mary_addr = ambox.spawn(player, "Mary", 1, m)
 
 t_start = os.clock()
 
-ambox.send(mike_addr, { from = mary_addr, hits = 1 })
+ambox.send(mike_addr, mary_addr, 1)
 n_sends = n_sends + 1
 
 t_end = os.clock()
