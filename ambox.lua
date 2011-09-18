@@ -70,13 +70,11 @@ end
 
 local function run_main_todos(force) -- Have force or main thread.
   if force or (coroutine.running() == nil) then
-    local todo = nil
-    repeat
-      todo = table.remove(main_todos, 1)
-      if todo then
-        todo()
-      end
-    until todo == nil
+    if #main_todos > 0 then
+      local t = main_todos -- Snapshot main_todos, to ensure
+      main_todos = {}      -- that we will finish the loop.
+      for i = 1, #t do t[i]() end
+    end
   end
 
   return true
