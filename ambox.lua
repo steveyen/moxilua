@@ -168,7 +168,7 @@ end
 ----------------------------------------
 
 local function send_later(dest_addr, ...)
-  send_msg(dest_addr, { ... })
+  return send_msg(dest_addr, { ... }) -- The return allows TCO by lua.
 end
 
 local function send(dest_addr, ...)
