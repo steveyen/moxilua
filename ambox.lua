@@ -1,6 +1,6 @@
 -- ambox - actor mailboxes
 --
--- Enables simple, cooperative actor-like programs.  Based on lua
+-- Enables simple, cooperative actor-like programs. Based on lua
 -- coroutines, where each actor (a managed coroutine) has an address
 -- and can asynchronously send/recv() messages to each other.
 --
@@ -186,9 +186,8 @@ local function send_track(dest_addr, track_addr, track_args, ...)
   loop_until_empty()
 end
 
--- Receive a message via multi-return-values. The optional opt_filter
--- function should return true when a message is acceptable for
--- recv()'ing right now.
+-- Receive a message via multi-return-values. Optional opt_filter
+-- function should return true when a message is acceptable.
 --
 local function recv(opt_filter)
   map_addr_to_mbox[self_addr()].filter = opt_filter
@@ -239,9 +238,9 @@ local function spawn(f, ...)
   return spawn_name(f, nil, ...)
 end
 
--- Registers a watcher actor on a target actor.  A single watcher
+-- Registers a watcher actor on a target actor. A single watcher
 -- actor can register multiple times on a target actor with different
--- args.  When then target actor dies, the watcher will be notified,
+-- args. When then target actor dies, the watcher will be notified,
 -- once for each call to the original watch().
 --
 local function watch(target_addr, watcher_addr, ...)
@@ -259,7 +258,7 @@ local function watch(target_addr, watcher_addr, ...)
 end
 
 -- The unwatch() is not symmetric with watch(), in that unwatch()
--- clears the entire watcher_args list for a watcher addr.  That
+-- clears the entire watcher_args list for a watcher addr. That
 -- is, multiple calls to watch() for a watcher_addr, will be cleared
 -- out by a single call to unwatch().
 --
