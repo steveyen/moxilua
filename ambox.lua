@@ -62,39 +62,25 @@ local function register(coro, opt_suffix)
   return addr
 end
 
--- Lowest level asynchronous send of a message.
---
 local function send_msg(dest_addr, dest_msg, track_addr, track_args)
-  table.insert(envelopes, { dest_addr, dest_msg, track_addr, track_args })
-  stats.tot_send = stats.tot_send + 1
-end
-
-local function run_main_todos(force) -- Have force or main thread.
-  if force or (coroutine.running() == nil) then
-    if #main_todos > 0 then
-      local t = main_todos -- Snapshot/swap main_todos, to ensure
-      main_todos = {}      -- that we will finish the loop.
-      for i = 1, #t do t[i]() end
-    end
+  if dest_addr then
+    table.insert(envelopes, { dest_addr, dest_msg, track_addr, track_args })
+    stats.tot_send = stats.tot_send + 1
   end
-
-  return true
 end
 
 local function resume(coro, ...)
-  if coro and coroutine.status(coro) ~= 'dead' then
-    stats.tot_actor_resume = stats.tot_actor_resume + 1
+  stats.tot_actor_resume = stats.tot_actor_resume + 1
 
-    local ok, err = coroutine.resume(coro, ...)
-    if not ok then
-      if _G.debug then
-        print(err)
-        print(_G.debug.traceback(coro))
-      end
+  local ok, err = coroutine.resume(coro, ...)
+  if not ok then
+    if _G.debug then
+      print(err)
+      print(_G.debug.traceback(coro))
     end
-
-    return ok
   end
+
+  return ok
 end
 
 local function finish(addr) -- Invoked when an actor is done.
@@ -110,6 +96,16 @@ local function finish(addr) -- Invoked when an actor is done.
       end
     end
   end
+end
+
+local function run_main_todos() -- Must be on main thread.
+  if #main_todos > 0 then
+    local t = main_todos -- Snapshot/swap main_todos, to ensure
+    main_todos = {}      -- that we will finish the loop.
+    for i = 1, #t do t[i]() end
+  end
+
+  return true
 end
 
 local function deliver_envelope(envelope) -- Must run on main thread.
@@ -230,7 +226,10 @@ local function spawn_with(spawner, actor_func, suffix, ...)
                                finish(child_addr)
                              end
                            end)
-  run_main_todos()
+
+  if coroutine.running() == nil then -- Main thread.
+    run_main_todos()
+  end
 
   return child_addr
 end

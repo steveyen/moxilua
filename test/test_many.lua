@@ -11,7 +11,7 @@ function node(next_addr, n)
     -- print("node " .. self_addr .. " recv'ed " .. msg)
 
     ambox.send(next_addr, msg)
-    -- print("msg forwarded")
+    -- print("msg forwarded: " .. next_addr)
   end
 end
 
@@ -25,6 +25,8 @@ end
 
 t_spawned = os.clock()
 
+print("spawns/sec: ", times / (t_spawned - t_start))
+
 ambox.send(last_addr, "hi!")
 
 t_sent = os.clock()
@@ -32,6 +34,5 @@ t_sent = os.clock()
 s = ambox.stats()
 for k, v in pairs(s) do print(k, v) end
 
-print("spawns/sec: ", times / (t_spawned - t_start))
 print("msgs/sec:   ", times / (t_sent - t_spawned))
 
