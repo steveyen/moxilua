@@ -13,6 +13,7 @@ local stats = { tot_actor_spawn = 0,
                 tot_msg_resend = 0,
                 tot_send = 0,
                 tot_recv = 0,
+                tot_yield = 0,
                 tot_loop = 0 }
 
 local map_addr_to_mbox = {} -- Table, key'ed by addr.
@@ -60,8 +61,6 @@ local function register(coro, opt_suffix)
 
   return addr
 end
-
-----------------------------------------
 
 -- Lowest-level asynchronous send of a message.
 --
@@ -138,8 +137,6 @@ local function deliver_envelope(envelope) -- Must run on main thread.
   end
 end
 
-----------------------------------------
-
 -- Process all envelopes, requeuing any envelopes that did
 -- not pass their mbox.filter and which need resending.
 --
@@ -212,6 +209,7 @@ end
 local function yield_filter(m) return m == 0x06041e1d0 end
 
 local function yield()
+  stats.tot_yield = stats.tot_yield + 1
   send_later(self_addr(), 0x06041e1d0) -- "go yield"
   recv(yield_filter)
 end
