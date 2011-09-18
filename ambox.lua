@@ -190,8 +190,8 @@ end
 -- function should return true when a message is acceptable for
 -- recv()'ing right now.
 --
-local function recv(opt_filter, addr)
-  map_addr_to_mbox[addr or self_addr()].filter = opt_filter
+local function recv(opt_filter)
+  map_addr_to_mbox[self_addr()].filter = opt_filter
   stats.tot_recv = stats.tot_recv + 1
   return coroutine.yield()
 end
