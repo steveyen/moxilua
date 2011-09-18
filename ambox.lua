@@ -1,8 +1,8 @@
 -- ambox - actor mailboxes
 --
--- Simple erlang-like system, enabling cooperative actor-like
--- programs.  Works for local process only (not distributed),
--- with a single main thread, based on lua coroutines.
+-- Enables simple, cooperative actor-like programs.  Based on lua
+-- coroutines, where each actor (a managed coroutine) has an address
+-- and can asynchronously send/recv() messages to each other.
 --
 function ambox_module()
 
@@ -30,7 +30,7 @@ local function create_mbox(addr, coro) -- Mailbox for actor coroutine.
            filter   = nil } -- A function passed in during recv()
 end
 
-local function user_data(addr)
+local function user_data(addr) -- Caller uses the returned table.
   local mbox = map_addr_to_mbox[addr or self_addr()]
   if mbox then
     return mbox.data
