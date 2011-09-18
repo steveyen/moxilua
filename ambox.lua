@@ -63,7 +63,7 @@ local function register(coro, opt_suffix)
 end
 
 local function send_msg(dest_addr, dest_msg, track_addr, track_args)
-  if dest_addr then
+  if dest_addr then -- The nil check strangely increases performance.
     table.insert(envelopes, { dest_addr, dest_msg, track_addr, track_args })
     stats.tot_send = stats.tot_send + 1
   end
@@ -134,8 +134,8 @@ end
 -- Process all envelopes, requeuing any envelopes that did
 -- not pass their mbox.filter and which need resending.
 --
-local function loop_until_empty(force)
-  if force or (coroutine.running() == nil) then
+local function loop_until_empty()
+  if coroutine.running() == nil then -- Only when main thread.
     stats.tot_loop = stats.tot_loop + 1
 
     local resends

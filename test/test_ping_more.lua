@@ -12,7 +12,7 @@ function player(name, n, max)
 
     if ball.hits <= max then
       for i = 1, n do
-        ambox.send(ball.from, { from = self_addr, hits = ball.hits + 1 })
+        ambox.send_later(ball.from, { from = self_addr, hits = ball.hits + 1 })
         n_sends = n_sends + 1
       end
     end
