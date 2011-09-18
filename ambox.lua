@@ -31,10 +31,7 @@ local function create_mbox(addr, coro) -- Mailbox for actor coroutine.
 end
 
 local function user_data(addr) -- Caller uses the returned table.
-  local mbox = map_addr_to_mbox[addr or self_addr()]
-  if mbox then
-    return mbox.data
-  end
+  return map_addr_to_mbox[addr or self_addr()].data
 end
 
 local function self_addr()
@@ -52,6 +49,8 @@ local function unregister(addr)
 end
 
 local function register(coro, opt_suffix)
+  assert(coro)
+
   unregister(map_coro_to_addr[coro])
 
   last_addr = last_addr + 1
@@ -99,13 +98,11 @@ end
 -- Lowest-level asynchronous send of a message.
 --
 local function send_msg(dest_addr, dest_msg, track_addr, track_args)
-  if dest_addr then
-    table.insert(envelopes, { dest_addr  = dest_addr,
-                              dest_msg   = dest_msg,
-                              track_addr = track_addr,
-                              track_args = track_args })
-    stats.tot_send = stats.tot_send + 1
-  end
+  table.insert(envelopes, { dest_addr  = dest_addr,
+                            dest_msg   = dest_msg,
+                            track_addr = track_addr,
+                            track_args = track_args })
+  stats.tot_send = stats.tot_send + 1
 end
 
 local function finish(addr) -- Invoked when an actor is done.
