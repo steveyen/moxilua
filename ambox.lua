@@ -220,6 +220,13 @@ local function recv(opt_filter, addr)
   return coroutine.yield()
 end
 
+local function yield_filter(m) return m == 0x06041e1d0 end
+
+local function yield()
+  send_later(self_addr(), 0x06041e1d0) -- "go yield"
+  recv(yield_filter)
+end
+
 ----------------------------------------
 
 local function spawn_with(spawner, actor_func, suffix, ...)
@@ -311,6 +318,7 @@ return {
   user_data  = user_data,
   watch      = watch,
   unwatch    = unwatch,
+  yield      = yield,
 
   loop_until_empty = loop_until_empty,
 
