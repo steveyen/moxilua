@@ -62,7 +62,7 @@ local function register(coro, opt_suffix)
   return addr
 end
 
--- Lowest-level asynchronous send of a message.
+-- Lowest level asynchronous send of a message.
 --
 local function send_msg(dest_addr, dest_msg, track_addr, track_args)
   table.insert(envelopes, { dest_addr  = dest_addr,
@@ -195,10 +195,9 @@ local function send_track(dest_addr, track_addr, track_args, ...)
   loop_until_empty()
 end
 
--- Receive a message via multi-return-values.
---
--- The optional opt_filter function should return true
--- when a message is acceptable for recv()'ing right now.
+-- Receive a message via multi-return-values. The optional opt_filter
+-- function should return true when a message is acceptable for
+-- recv()'ing right now.
 --
 local function recv(opt_filter, addr)
   map_addr_to_mbox[addr or self_addr()].filter = opt_filter
