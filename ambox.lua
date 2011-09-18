@@ -173,13 +173,10 @@ local function send_later(dest_addr, ...)
   send_msg(dest_addr, { ... })
 end
 
--- Unlike send_later(), a send() might opportunistically
--- process the message immediately before returning.
---
 local function send(dest_addr, ...)
-  send_msg(dest_addr, { ... })
-  loop_until_empty()
-end
+  send_msg(dest_addr, { ... }) -- Unlike send_later(), we may eagerly
+  loop_until_empty()           -- process the message now, which can
+end                            -- help for main thread sends().
 
 -- Like send(), but the track_addr will be notified if there
 -- are problems sending the message to the dest_addr.
