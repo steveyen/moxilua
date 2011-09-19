@@ -6,6 +6,9 @@
 --
 function ambox_module()
 
+local corunning, cocreate, coresume, coyield =
+  coroutine.running, coroutine.create, coroutine.resume, coroutine.yield
+
 local stats = { tot_actor_spawn = 0,
                 tot_actor_resume = 0,
                 tot_actor_finish = 0,
@@ -32,7 +35,7 @@ local function create_mbox(addr, coro) -- Mailbox for actor coroutine.
 end
 
 local function self_addr()
-  return map_coro_to_addr[coroutine.running()]
+  return map_coro_to_addr[corunning()]
 end
 
 local function user_data(addr) -- Caller uses the returned table.
@@ -72,7 +75,7 @@ end
 local function resume(coro, ...)
   stats.tot_actor_resume = stats.tot_actor_resume + 1
 
-  local ok, err = coroutine.resume(coro, ...)
+  local ok, err = coresume(coro, ...)
   if not ok and _G.debug then
     print(err)
     print(_G.debug.traceback(coro))
@@ -133,7 +136,7 @@ end
 -- not pass their mbox.filter and which need resending.
 --
 local function cycle(force)
-  if force or coroutine.running() == nil then -- Only when main thread.
+  if force or corunning() == nil then -- Only when main thread.
     stats.tot_cycle = stats.tot_cycle + 1
 
     local resends
@@ -190,7 +193,7 @@ end
 local function recv(opt_filter)
   map_addr_to_mbox[self_addr()].filter = opt_filter
   stats.tot_recv = stats.tot_recv + 1
-  return coroutine.yield()
+  return coyield()
 end
 
 local function yield_filter(m) return m == 0x06041e1d0 end
@@ -221,7 +224,7 @@ local function spawn_with(spawner, actor_func, suffix, ...)
                              end
                            end)
 
-  if coroutine.running() == nil then -- Main thread.
+  if corunning() == nil then -- Main thread.
     run_main_todos()
   end
 
@@ -229,7 +232,7 @@ local function spawn_with(spawner, actor_func, suffix, ...)
 end
 
 local function spawn_name(f, name, ...)
-  return spawn_with(coroutine.create, f, name, ...)
+  return spawn_with(cocreate, f, name, ...)
 end
 
 local function spawn(f, ...)
