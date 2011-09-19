@@ -7,6 +7,7 @@ function player(name, max)
   local self = ambox.self_addr()
   local recv = ambox.recv
   local send = ambox.send_later
+
   while true do
     from, hits = recv()
     n_recvs = n_recvs + 1
