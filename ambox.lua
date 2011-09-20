@@ -9,15 +9,15 @@ function ambox_module()
 local corunning, cocreate, coresume, coyield =
   coroutine.running, coroutine.create, coroutine.resume, coroutine.yield
 
-local stats = { tot_actor_spawn = 0,
-                tot_actor_resume = 0,
-                tot_actor_finish = 0,
-                tot_msg_deliver = 0,
-                tot_msg_resend = 0,
-                tot_send = 0,
-                tot_recv = 0,
-                tot_yield = 0,
-                tot_cycle = 0 }
+local tot_actor_spawn  = 0 -- Stats counters looks like tot_something.
+local tot_actor_resume = 0
+local tot_actor_finish = 0
+local tot_msg_deliver  = 0
+local tot_msg_resend   = 0
+local tot_send         = 0
+local tot_recv         = 0
+local tot_yield        = 0
+local tot_cycle        = 0
 
 local map_addr_to_mbox = {} -- Table, key'ed by addr.
 local map_coro_to_addr = {} -- Table, key'ed by coro.
@@ -68,12 +68,12 @@ end
 local function send_msg(dest_addr, dest_msg, track_addr, track_args)
   if dest_addr then -- The nil check strangely increases performance.
     table.insert(envelopes, { dest_addr, dest_msg, track_addr, track_args })
-    stats.tot_send = stats.tot_send + 1
+    tot_send = tot_send + 1
   end
 end
 
 local function resume(coro, ...)
-  stats.tot_actor_resume = stats.tot_actor_resume + 1
+  tot_actor_resume = tot_actor_resume + 1
 
   local ok, err = coresume(coro, ...)
   if not ok and _G.debug then
@@ -89,7 +89,7 @@ local function finish(addr) -- Invoked when an actor is done.
   if mbox then
     unregister(addr)
 
-    stats.tot_actor_finish = stats.tot_actor_finish + 1
+    tot_actor_finish = tot_actor_finish + 1
 
     for watcher_addr, watcher_args in pairs(mbox.watchers or {}) do
       for i = 1, #watcher_args do
@@ -125,7 +125,7 @@ local function deliver_envelope(envelope) -- Must run on main thread.
         finish(dest_addr)
       end
 
-      stats.tot_msg_deliver = stats.tot_msg_deliver + 1
+      tot_msg_deliver = tot_msg_deliver + 1
     else
       send_msg(track_addr, track_args)
     end
@@ -137,7 +137,7 @@ end
 --
 local function cycle(force)
   if force or corunning() == nil then -- Only when main thread.
-    stats.tot_cycle = stats.tot_cycle + 1
+    tot_cycle = tot_cycle + 1
 
     local resends
     local delivered
@@ -159,7 +159,7 @@ local function cycle(force)
         end
       end
 
-      stats.tot_msg_resend = stats.tot_msg_resend + #resends
+      tot_msg_resend = tot_msg_resend + #resends
 
       for i = 1, #resends do
         envelopes[#envelopes + 1] = resends[i]
@@ -192,14 +192,14 @@ end
 --
 local function recv(opt_filter)
   map_addr_to_mbox[self_addr()].filter = opt_filter
-  stats.tot_recv = stats.tot_recv + 1
+  tot_recv = tot_recv + 1
   return coyield()
 end
 
 local function yield_filter(m) return m == 0x06041e1d0 end
 
 local function yield()
-  stats.tot_yield = stats.tot_yield + 1
+  tot_yield = tot_yield + 1
   send_later(self_addr(), 0x06041e1d0) -- "go yield"
   recv(yield_filter)
 end
@@ -216,7 +216,7 @@ local function spawn_with(spawner, actor_func, suffix, ...)
 
   child_addr = register(child_coro, suffix)
 
-  stats.tot_actor_spawn = stats.tot_actor_spawn + 1
+  tot_actor_spawn = tot_actor_spawn + 1
 
   table.insert(main_todos, function()
                              if not resume(child_coro) then
@@ -276,12 +276,17 @@ local function unwatch(target_addr, watcher_addr)
   end
 end
 
-----------------------------------------
-
 local function stats_snapshot()
-  local rv = { cur_envelopes = #envelopes }
-  for k, v in pairs(stats) do rv[k] = stats[k] end
-  return rv
+  return { cur_envelopes    = #envelopes,
+           tot_actor_spawn  = tot_actor_spawn,
+           tot_actor_resume = tot_actor_resume,
+           tot_actor_finish = tot_actor_finish,
+           tot_msg_deliver  = tot_msg_deliver,
+           tot_msg_resend   = tot_msg_resend,
+           tot_send         = tot_send,
+           tot_recv         = tot_recv,
+           tot_yield        = tot_yield,
+           tot_cycle        = tot_cycle }
 end
 
 ----------------------------------------
@@ -300,7 +305,6 @@ return { cycle      = cycle,
          unwatch    = unwatch,
          yield      = yield,
          stats      = stats_snapshot }
-
 end
 
 return ambox_module()
