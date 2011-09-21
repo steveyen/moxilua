@@ -41,9 +41,18 @@ Need to use external storage (light/heavy userdata).
 
 A really busy actor can starve other actors?
 
-Needs to politely yield() every once in awhile, and need to manage an
-immediately runnable actors list.
+Needs to politely yield() every once in awhile, but perhaps
+something can be done impolitely?
 
-# explicit actor yield() API
+# kill actors api
+
+# link actors api, with asymmetric links
+
+# resource cleanup
+
+Actors that hold resources, like sockets or file descriptors, and
+which are killed need to have cleanup pathways.
+
+# timeouts
 
 # more stats needed.
