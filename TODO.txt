@@ -17,6 +17,8 @@ Interesting issues - luajit is not multi-thread ready?
 
 lua lanes does not seem with work with luajit.
 
+# can we use zeromq?
+
 # luajit limitations?
 
 ## 1GB memory limitation?
