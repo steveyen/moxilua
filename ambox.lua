@@ -77,7 +77,7 @@ local function resume(coro, ...)
   tot_actor_resume = tot_actor_resume + 1
 
   local ok, rv = coresume(coro, ...)
-  if ok == true and rv == 0x0004ec40 then
+  if ok == true and rv == 0x0004ec40 then -- Magic 'recv' value.
     return true
   end
 
@@ -200,14 +200,14 @@ end
 local function recv(opt_filter)
   map_addr_to_mbox[self_addr()].filter = opt_filter
   tot_recv = tot_recv + 1
-  return coyield(0x0004ec40)
+  return coyield(0x0004ec40) -- Magic 'recv' value.
 end
 
 local function yield_filter(m) return m == 0x06041e1d0 end
 
 local function yield()
   tot_yield = tot_yield + 1
-  send_later(self_addr(), 0x06041e1d0) -- "go yield"
+  send_later(self_addr(), 0x06041e1d0) -- Magic 'go yield' value.
   recv(yield_filter)
 end
 
