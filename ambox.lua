@@ -6,6 +6,7 @@
 --
 function ambox_module()
 
+local tinsert = table.insert
 local corunning, cocreate, coresume, coyield =
   coroutine.running, coroutine.create, coroutine.resume, coroutine.yield
 
@@ -153,7 +154,7 @@ local function cycle(force)
         --
         local resend = deliver_envelope(table.remove(envelopes, 1))
         if resend then
-          resends[#resends + 1] = resend
+          tinsert(resends, resend)
         else
           delivered = delivered + 1
         end
@@ -162,7 +163,7 @@ local function cycle(force)
       tot_msg_resend = tot_msg_resend + #resends
 
       for i = 1, #resends do
-        envelopes[#envelopes + 1] = resends[i]
+        tinsert(envelopes, resends[i])
       end
     until (#envelopes <= 0 or delivered <= 0)
   end
@@ -254,7 +255,7 @@ local function watch(target_addr, watcher_addr, ...)
     local a = w[watcher_addr] or {}
     w[watcher_addr] = a
 
-    a[#a + 1] = { ... }
+    tinsert(a, { ... })
   end
 end
 
