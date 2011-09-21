@@ -39,22 +39,22 @@ Need to use external storage (light/heavy userdata).
 
 # only a single message queue rather than per-actor queue.
 
-# actors starvation
+# actors starvation.
 
 A really busy actor can starve other actors?
 
 Needs to politely yield() every once in awhile, but perhaps
 something can be done impolitely?
 
-# kill actors api
+# kill actors api.
 
-# link actors api, with asymmetric links
+# link actors api, with asymmetric links.
 
-# resource cleanup
+# resource cleanup.
 
 Actors that hold resources, like sockets or file descriptors, and
 which are killed need to have cleanup pathways.
 
-# timeouts
+# timeouts.
 
 # more stats needed.
