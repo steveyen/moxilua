@@ -76,13 +76,19 @@ end
 local function resume(coro, ...)
   tot_actor_resume = tot_actor_resume + 1
 
-  local ok, err = coresume(coro, ...)
-  if not ok and _G.debug then
-    print(err)
-    print(_G.debug.traceback(coro))
+  local ok, rv = coresume(coro, ...)
+  if ok == true and rv == 0x0004ec40 then
+    return true
   end
 
-  return ok
+  if ok == false then
+    print(rv)
+    if _G.debug then
+      print(_G.debug.traceback(coro))
+    end
+  end
+
+  return false
 end
 
 local function finish(addr) -- Invoked when an actor is done.
@@ -194,7 +200,7 @@ end
 local function recv(opt_filter)
   map_addr_to_mbox[self_addr()].filter = opt_filter
   tot_recv = tot_recv + 1
-  return coyield()
+  return coyield(0x0004ec40)
 end
 
 local function yield_filter(m) return m == 0x06041e1d0 end
