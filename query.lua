@@ -9,6 +9,7 @@ local function scan(docs, scan_prep, acc, join_prev, doc_visitor_fun)
   for i = 1, #docs do
     acc = doc_visitor_fun({ docs[i], join_prev }, acc)
   end
+  return acc
 end
 
 local function scan_prep(query, query_part, table, join, acc)
@@ -85,5 +86,23 @@ local function nested_loop_join(clientCB, query, tables)
     tinsert(funs, next_visitor_fun)
   end
   funs[1]({}, OUTER)
+end
+
+function TEST_scan()
+  assert('acc' == scan({}, 'unused', 'acc', 'unused', 'unused'))
+  x = scan({}, 'unused', {}, {},
+           function(join, acc) tinsert(acc, join[1]); return acc end)
+  assert(#x == 0)
+  x = scan({1}, 'unused', {}, {},
+           function(join, acc) tinsert(acc, join[1]); return acc end)
+  assert(#x == 1)
+  assert(x[1] == 1)
+  x = scan({1,2,3}, 'unused', {}, {},
+           function(join, acc) tinsert(acc, join[1]); return acc end)
+  assert(#x == 3)
+  assert(x[1] == 1)
+  assert(x[2] == 2)
+  assert(x[3] == 3)
+  print("OK")
 end
 
