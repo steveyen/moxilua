@@ -19,11 +19,10 @@ local function where_satisfied(query, join)
   return true
 end
 
-local function where_execute(clientCB, query, join, acc)
+local function where_execute(clientCB, query, join)
   if where_satisfied(query, join) then
-    acc = clientCB(RESULT, query, join, acc)
+    clientCB(RESULT, query, join)
   end
-  return acc
 end
 
 local function nested_loop_join3_exampleA(clientCB, query, tables)
@@ -42,10 +41,9 @@ local function nested_loop_join3_exampleA(clientCB, query, tables)
                                 scan_prep(query, 3, t3, join2, acc2)
                               return scan(t3, scan_prep3, acc3, join2,
                                           function(join3, acc3)
-                                            return where_execute(clientCB, query,
-                                                                 join3, acc3)
-
-                                   end)
+                                            where_execute(clientCB, query, join3)
+                                            return acc3
+                                          end)
                             end)
               end)
 end
@@ -56,7 +54,8 @@ local function nested_loop_join3_exampleB(clientCB, query, tables)
   local t1, t2, t3 = unpack(tables)
 
   local fun3 = function(join3, acc3)
-                 return where_execute(clientCB, query, join3, acc3)
+                 where_execute(clientCB, query, join3, acc3)
+                 return acc3
                end
   local fun2 = function(join2, acc2)
                  local scan_prep3, acc3 = scan_prep(query, 3, t3, join2, acc2)
@@ -74,7 +73,8 @@ local function nested_loop_join(clientCB, query, tables)
   -- A generic nested-loop-join implementation for joining N number
   -- of tables, and which creates only N + 1 visitor functions/closures.
   local inner_visitor_fun = function(join, acc)
-                              return where_execute(clientCB, query, join, acc)
+                              where_execute(clientCB, query, join, acc)
+                              return acc
                             end
   local funs = { inner_visitor_fun }
   for i = #tables, 1, -1 do
@@ -113,29 +113,24 @@ function TEST_scan()
 end
 
 function TEST_nlj()
-  x = nested_loop_join(function(kind, query, join, acc)
-                         assert(false)
-                       end, 'unused', {})
-  assert(x == nil)
-  x = nested_loop_join(function(kind, query, join, acc)
-                         assert(join[1] == 1)
-                         assert(#acc == 0)
-                         tinsert(acc, join)
-                         return acc
-                       end, 'unused', {{1}})
-  assert(#x == 1)
-  x = nested_loop_join(function(kind, query, join, acc)
-                         tinsert(acc, join)
-                         return acc
-                       end, 'unused', {{1, 2, 3}})
+  nested_loop_join(function(kind, query, join)
+                     assert(false)
+                   end, 'unused', {})
+  nested_loop_join(function(kind, query, join)
+                     assert(join[1] == 1)
+                   end, 'unused', {{1}})
+  x = {}
+  nested_loop_join(function(kind, query, join)
+                     tinsert(x, join)
+                   end, 'unused', {{1, 2, 3}})
   assert(#x == 3)
   assert(x[1][1] == 1)
   assert(x[2][1] == 2)
   assert(x[3][1] == 3)
-  x = nested_loop_join(function(kind, query, join, acc)
-                         tinsert(acc, join)
-                         return acc
-                       end, 'unused', {{1, 2, 3}, {10, 20}})
+  x = {}
+  nested_loop_join(function(kind, query, join)
+                     tinsert(x, join)
+                   end, 'unused', {{1, 2, 3}, {10, 20}})
   assert(#x == 6)
   assert(x[1][1] == 10)
   assert(x[1][2][1] == 1)
