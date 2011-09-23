@@ -26,7 +26,7 @@ local function where_execute(clientCB, query, join, acc)
   return acc
 end
 
-function nestedLoopJoin3_exampleA(clientCB, query, tables)
+local function nested_loop_join3_exampleA(clientCB, query, tables)
   -- How a 3-table nested loop join would naively look...
   local t1, t2, t3 = unpack(tables)
 
@@ -45,8 +45,8 @@ function nestedLoopJoin3_exampleA(clientCB, query, tables)
        end)
 end
 
-function nestedLoopJoin3_exampleB(clientCB, query, tables)
-  -- Compared to nestedLoopJoin3_exampleA, the closures are outside
+local function nested_loop_join3_exampleB(clientCB, query, tables)
+  -- Compared to nested_loop_join3_exampleA, the closures are outside
   -- and reused, so there's a lot less runtime closure creation.
   local t1, t2, t3 = unpack(tables)
 
@@ -65,7 +65,7 @@ function nestedLoopJoin3_exampleB(clientCB, query, tables)
   scan(t1, scan_prep1, acc1, {}, fun1)
 end
 
-function nestedLoopJoin(clientCB, query, tables)
+local function nested_loop_join(clientCB, query, tables)
   -- A generic nested-loop-join implementation for joining N number
   -- of tables, and which creates only N + 1 visitor functions/closures.
   local ntables = #tables
@@ -86,3 +86,4 @@ function nestedLoopJoin(clientCB, query, tables)
   end
   funs[1]({}, OUTER)
 end
+
