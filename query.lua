@@ -117,6 +117,16 @@ function TEST_nlj()
   x = {}
   nested_loop_join(function(kind, query, join)
                      tinsert(x, join)
+                   end, 'unused', {{}, {1, 2, 3}})
+  assert(#x == 0)
+  x = {}
+  nested_loop_join(function(kind, query, join)
+                     tinsert(x, join)
+                   end, 'unused', {{1, 2, 3}, {}})
+  assert(#x == 0)
+  x = {}
+  nested_loop_join(function(kind, query, join)
+                     tinsert(x, join)
                    end, 'unused', {{1, 2, 3}, {10, 20}})
   assert(#x == 6)
   assert(x[1][1] == 10)
