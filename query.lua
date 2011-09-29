@@ -1,18 +1,21 @@
 local tinsert = table.insert
 
-local function ftrue() return true end
+-- What is a acc vs scan-prep?
+-- * state for query processing.
+-- * global blackboard for the query vs per-loop state
+-- * not the resultset.
+-- But why pass it around when lua has mutable state?
 
 local RESULT = 0x0001
 
-local function scan(docs, scan_prep, acc, join_prev, doc_visitor_fun)
+local function scan(docs, scan_prep, bb, join_prev, doc_visitor_fun)
   for i = 1, #docs do
-    acc = doc_visitor_fun({ docs[i], join_prev }, acc)
+    doc_visitor_fun({ docs[i], join_prev })
   end
-  return acc
 end
 
-local function scan_prep(query, query_part, table, join, acc)
-  return ftrue, acc
+local function scan_prep(query, query_part, table, join, bb)
+  return nil
 end
 
 local function where_satisfied(query, join)
@@ -28,62 +31,51 @@ end
 local function nested_loop_join3_exampleA(clientCB, query, tables)
   -- How a 3-table nested loop join would naively look...
   local t1, t2, t3 = unpack(tables)
-
-  local scan_prep1, acc1 =
-    scan_prep(query, 1, t1, {}, {})
-  return scan(t1, scan_prep1, acc1, {},
-              function(join1, acc1)
-                local scan_prep2, acc2 =
-                  scan_prep(query, 2, t2, join1, acc1)
-                return scan(t2, scan_prep2, acc2, join1,
-                            function(join2, acc2)
-                              local scan_prep3, acc3 =
-                                scan_prep(query, 3, t3, join2, acc2)
-                              return scan(t3, scan_prep3, acc3, join2,
-                                          function(join3, acc3)
-                                            where_execute(clientCB, query, join3)
-                                            return acc3
-                                          end)
-                            end)
+  local bb = {}
+  scan(t1, scan_prep(query, 1, t1, {}, bb), bb, {},
+       function(join1)
+         scan(t2, scan_prep(query, 2, t2, join1, bb), bb, join1,
+              function(join2)
+                scan(t3, scan_prep(query, 3, t3, join2, bb), bb, join2,
+                     function(join3)
+                       where_execute(clientCB, query, join3)
+                     end)
               end)
+       end)
 end
 
 local function nested_loop_join3_exampleB(clientCB, query, tables)
   -- Compared to nested_loop_join3_exampleA, the closures are outside
   -- and reused, so there's a lot less runtime closure creation.
   local t1, t2, t3 = unpack(tables)
-
-  local fun3 = function(join3, acc3)
-                 where_execute(clientCB, query, join3, acc3)
-                 return acc3
+  local bb = {}
+  local fun3 = function(join3)
+                 where_execute(clientCB, query, join3)
                end
-  local fun2 = function(join2, acc2)
-                 local scan_prep3, acc3 = scan_prep(query, 3, t3, join2, acc2)
-                 return scan(t3, scan_prep3, acc3, join2, fun3)
+  local fun2 = function(join2)
+                 scan(t3, scan_prep(query, 3, t3, join2, bb), bb, join2, fun3)
                end
-  local fun1 = function(join1, acc1)
-                 local scan_prep2, acc2 = scan_prep(query, 2, t2, join1, acc1)
-                 return scan(t2, scan_prep2, acc2, join1, fun2)
+  local fun1 = function(join1)
+                 scan(t2, scan_prep(query, 2, t2, join1, bb), bb, join1, fun2)
                end
-  local scan_prep1, acc1 = scan_prep(query, 1, t1, {}, {})
-  return scan(t1, scan_prep1, acc1, {}, fun1)
+  scan(t1, scan_prep(query, 1, t1, {}, bb), bb, {}, fun1)
 end
 
 local function nested_loop_join(clientCB, query, tables)
   -- A generic nested-loop-join implementation for joining N number
   -- of tables, and which creates only N + 1 visitor functions/closures.
-  local inner_visitor_fun = function(join, acc)
-                              where_execute(clientCB, query, join, acc)
-                              return acc
+  local bb = {} -- Blackboard during query processing.
+  local inner_visitor_fun = function(join)
+                              where_execute(clientCB, query, join)
                             end
   local funs = { inner_visitor_fun }
   for i = #tables, 1, -1 do
     local next_visitor_fun =
       (function(table, last_visitor_fun, query_part)
-         return function(join, acc)
-                  local scan_prep_next, acc_next =
-                    scan_prep(query, query_part, table, join, acc)
-                  return scan(table, scan_prep_next, acc_next,
+         return function(join)
+                  local scan_prep_next =
+                    scan_prep(query, query_part, table, join, bb)
+                  return scan(table, scan_prep_next, bb_next,
                               join, last_visitor_fun)
                 end
        end)(tables[i], funs[#funs], i)
@@ -95,20 +87,22 @@ local function nested_loop_join(clientCB, query, tables)
 end
 
 function TEST_scan()
-  assert('acc' == scan({}, 'unused', 'acc', 'unused', 'unused'))
-  x = scan({}, 'unused', {}, {},
-           function(join, acc) tinsert(acc, join[1]); return acc end)
-  assert(#x == 0)
-  x = scan({1}, 'unused', {}, {},
-           function(join, acc) tinsert(acc, join[1]); return acc end)
-  assert(#x == 1)
-  assert(x[1] == 1)
-  x = scan({1,2,3}, 'unused', {}, {},
-           function(join, acc) tinsert(acc, join[1]); return acc end)
-  assert(#x == 3)
-  assert(x[1] == 1)
-  assert(x[2] == 2)
-  assert(x[3] == 3)
+  g = {}
+  scan({}, 'unused', {}, {},
+       function(join) tinsert(g, join[1]) end)
+  assert(#g == 0)
+  g = {}
+  scan({1}, 'unused', {}, {},
+       function(join) tinsert(g, join[1]) end)
+  assert(#g == 1)
+  assert(g[1] == 1)
+  g = {}
+  scan({1,2,3}, 'unused', {}, {},
+       function(join) tinsert(g, join[1]) end)
+  assert(#g == 3)
+  assert(g[1] == 1)
+  assert(g[2] == 2)
+  assert(g[3] == 3)
   print("OK")
 end
 
