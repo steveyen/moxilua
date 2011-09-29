@@ -72,7 +72,7 @@ local function nested_loop_join(clientCB, query, tables)
              end)(tables[i], funs[#funs], i))
   end
   if #funs > 1 then
-    return funs[#funs]({})
+    funs[#funs]({})
   end
 end
 
