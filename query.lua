@@ -25,7 +25,7 @@ end
 local function nested_loop_join3_exampleA(clientCB, query, tables)
   -- How a 3-table nested loop join would naively look...
   local t1, t2, t3 = unpack(tables)
-  local bb = {}
+  local bb = {} -- Blackboard during query processing.
   scan(t1, scan_prep(query, 1, t1, {}, bb), {}, bb,
        function(join1)
          scan(t2, scan_prep(query, 2, t2, join1, bb), join1, bb,
@@ -56,17 +56,15 @@ local function nested_loop_join3_exampleB(clientCB, query, tables)
 end
 
 local function nested_loop_join(clientCB, query, tables)
-  -- A generic nested-loop-join implementation for joining N number
+  -- A generic, nested-loop-join implementation for joining N number
   -- of tables, and which creates O(N) visitor functions/closures.
-  local bb = {} -- Blackboard during query processing.
-  local funs = { function(join)
-                   where_execute(clientCB, query, join)
-                 end }
+  local bb = {}
+  local funs = { function(join) where_execute(clientCB, query, join) end }
   for i = #tables, 1, -1 do
     tinsert(funs,
-            (function(t, last_visitor_fun, query_part)
+            (function(t, last_visitor_fun, ii) -- Capture t, i, etc.
                return function(join)
-                        return scan(t, scan_prep(query, query_part, t, join, bb),
+                        return scan(t, scan_prep(query, ii, t, join, bb),
                                     join, bb, last_visitor_fun)
                       end
              end)(tables[i], funs[#funs], i))
@@ -75,6 +73,8 @@ local function nested_loop_join(clientCB, query, tables)
     funs[#funs]({})
   end
 end
+
+# ------------------------------------------------------
 
 function TEST_scan()
   g = {}
