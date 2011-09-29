@@ -57,25 +57,22 @@ end
 
 local function nested_loop_join(clientCB, query, tables)
   -- A generic nested-loop-join implementation for joining N number
-  -- of tables, and which creates only N + 1 visitor functions/closures.
+  -- of tables, and which creates O(N) visitor functions/closures.
   local bb = {} -- Blackboard during query processing.
-  local inner_visitor_fun = function(join)
-                              where_execute(clientCB, query, join)
-                            end
-  local funs = { inner_visitor_fun }
+  local funs = { function(join)
+                   where_execute(clientCB, query, join)
+                 end }
   for i = #tables, 1, -1 do
-    local next_visitor_fun =
-      (function(table, last_visitor_fun, query_part)
-         return function(join)
-                  return scan(table,
-                              scan_prep(query, query_part, table, join, bb),
-                              join, bb, last_visitor_fun)
-                end
-       end)(tables[i], funs[#funs], i)
-    tinsert(funs, next_visitor_fun)
+    tinsert(funs,
+            (function(t, last_visitor_fun, query_part)
+               return function(join)
+                        return scan(t, scan_prep(query, query_part, t, join, bb),
+                                    join, bb, last_visitor_fun)
+                      end
+             end)(tables[i], funs[#funs], i))
   end
   if #funs > 1 then
-    return funs[#funs]({}, {})
+    return funs[#funs]({})
   end
 end
 
