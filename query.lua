@@ -120,6 +120,12 @@ function TEST_nlj()
   nested_loop_join(xinsert, 'unused', {{1, 2, 3}, {}})
   assert(#x == 0)
   x = {}
+  nested_loop_join(xinsert, 'unused', {{1}, {2}, {3}})
+  assert(#x == 1)
+  assert(x[1][1] == 3)
+  assert(x[1][2][1] == 2)
+  assert(x[1][2][2][1] == 1)
+  x = {}
   nested_loop_join(xinsert, 'unused', {{1, 2, 3}, {10, 20}})
   assert(#x == 6)
   assert(x[1][1] == 10)
