@@ -2,14 +2,14 @@ local tinsert = table.insert
 
 local RESULT = 0x0001
 
-local function scan(docs, scan_prep, bb, join_prev, doc_visitor_fun)
+local function scan(docs, scan_hints, join_prev, bb, doc_visitor_fun)
   for i = 1, #docs do
     doc_visitor_fun({ docs[i], join_prev })
   end
 end
 
 local function scan_prep(query, query_part, table, join, bb)
-  return nil
+  return nil -- Returns hints for scan().
 end
 
 local function where_satisfied(query, join)
@@ -26,11 +26,11 @@ local function nested_loop_join3_exampleA(clientCB, query, tables)
   -- How a 3-table nested loop join would naively look...
   local t1, t2, t3 = unpack(tables)
   local bb = {}
-  scan(t1, scan_prep(query, 1, t1, {}, bb), bb, {},
+  scan(t1, scan_prep(query, 1, t1, {}, bb), {}, bb,
        function(join1)
-         scan(t2, scan_prep(query, 2, t2, join1, bb), bb, join1,
+         scan(t2, scan_prep(query, 2, t2, join1, bb), join1, bb,
               function(join2)
-                scan(t3, scan_prep(query, 3, t3, join2, bb), bb, join2,
+                scan(t3, scan_prep(query, 3, t3, join2, bb), join2, bb,
                      function(join3)
                        where_execute(clientCB, query, join3)
                      end)
@@ -47,12 +47,12 @@ local function nested_loop_join3_exampleB(clientCB, query, tables)
                  where_execute(clientCB, query, join3)
                end
   local fun2 = function(join2)
-                 scan(t3, scan_prep(query, 3, t3, join2, bb), bb, join2, fun3)
+                 scan(t3, scan_prep(query, 3, t3, join2, bb), join2, bb, fun3)
                end
   local fun1 = function(join1)
-                 scan(t2, scan_prep(query, 2, t2, join1, bb), bb, join1, fun2)
+                 scan(t2, scan_prep(query, 2, t2, join1, bb), join1, bb, fun2)
                end
-  scan(t1, scan_prep(query, 1, t1, {}, bb), bb, {}, fun1)
+  scan(t1, scan_prep(query, 1, t1, {}, bb), {}, bb, fun1)
 end
 
 local function nested_loop_join(clientCB, query, tables)
@@ -67,10 +67,9 @@ local function nested_loop_join(clientCB, query, tables)
     local next_visitor_fun =
       (function(table, last_visitor_fun, query_part)
          return function(join)
-                  local scan_prep_next =
-                    scan_prep(query, query_part, table, join, bb)
-                  return scan(table, scan_prep_next, bb_next,
-                              join, last_visitor_fun)
+                  return scan(table,
+                              scan_prep(query, query_part, table, join, bb),
+                              join, bb, last_visitor_fun)
                 end
        end)(tables[i], funs[#funs], i)
     tinsert(funs, next_visitor_fun)
