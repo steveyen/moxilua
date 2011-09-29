@@ -1,11 +1,5 @@
 local tinsert = table.insert
 
--- What is a acc vs scan-prep?
--- * state for query processing.
--- * global blackboard for the query vs per-loop state
--- * not the resultset.
--- But why pass it around when lua has mutable state?
-
 local RESULT = 0x0001
 
 local function scan(docs, scan_prep, bb, join_prev, doc_visitor_fun)
