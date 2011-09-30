@@ -287,7 +287,7 @@ local function recv(opt_filter, opt_timeout)
   mbox.filter = opt_filter
   mbox.timeout = opt_timeout
   tot_recv = tot_recv + 1
-  return coyield(0x0004ec40) -- Magic 'recv' value.
+  return coyield(0x0004ec40) -- Magic 'recv' value. See resume().
 end
 
 local function yield_filter(m) return m == 0x06041e1d0 end
