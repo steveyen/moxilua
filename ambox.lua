@@ -6,6 +6,8 @@
 --
 function ambox_module()
 
+local otime = os.time
+local mfloor = math.floor
 local tinsert = table.insert
 local corunning, cocreate, coresume, coyield =
   coroutine.running, coroutine.create, coroutine.resume, coroutine.yield
@@ -19,6 +21,7 @@ local tot_send         = 0
 local tot_recv         = 0
 local tot_yield        = 0
 local tot_cycle        = 0
+local tot_timeout      = 0
 
 local map_addr_to_mbox = {} -- Table, key'ed by addr.
 local map_coro_to_addr = {} -- Table, key'ed by coro.
@@ -26,14 +29,20 @@ local map_coro_to_addr = {} -- Table, key'ed by coro.
 local last_addr  = 0
 local envelopes  = {} -- TODO: One day have a queue per actor.
 local main_todos = {} -- Array of closures, to be run on main thread.
+local timeouts   = {} -- Min-heap array of mboxes with recv() timeout.
 
 local function create_mbox(addr, coro) -- Mailbox for actor coroutine.
   return { addr     = addr,
            coro     = coro,
            data     = {},   -- User data for this mbox.
            watchers = nil,  -- Array of watcher addresses.
-           filter   = nil } -- A function passed in during recv()
+           filter   = nil,  -- A function passed in during recv().
+           timeout  = nil,  -- Timeout during recv().
+           tindex   = nil } -- Timeout heap index for easy removal.
 end
+
+local TIMEOUT = 'timeout'
+local TINDEX  = 'tindex'
 
 local function self_addr()
   return map_coro_to_addr[corunning()]
@@ -43,11 +52,74 @@ local function user_data(addr) -- Caller uses the returned table.
   return map_addr_to_mbox[addr or self_addr()].data
 end
 
+---------------------------------------------------
+
+local function heap_swap(heap, index_key, a, b)
+  heap[a][index_key] = b
+  heap[b][index_key] = a
+  heap[a], heap[b] = heap[b], heap[a]
+end
+
+local function heap_repair_up(heap, priority_key, index_key, index)
+  local item = heap[index]
+  if item then
+    local parenti = mfloor(index / 2)
+    local parent = heap[parenti]
+    if parent and parent[priority_key] > item[priority_key] then
+      heap_swap(heap, index_key, parenti, index)
+      return heap_repair_up(heap, priority_key, index_key, parenti)
+    end
+  end
+end
+
+local function heap_repair_down(heap, priority_key, index_key, index)
+  local item = heap[index]
+  if item then
+    local priority = item[priority_key]
+    for i = 0, 1 do                -- First left child, then right.
+      local childi = index * 2 + i -- Child index.
+      local child = heap[childi]
+      if child and child[priority_key] < priority then
+        heap_swap(heap, index_key, childi, index)
+        return heap_repair_down(heap, priority_key, index_key, childi)
+      end
+    end
+  end
+end
+
+local function heap_remove(heap, priority_key, index_key, item)
+  local index = item[index_key]
+  if index then
+    item[index_key] = nil
+    local last = heap[#heap] -- Promote last item, if any.
+    heap[#heap] = nil
+    heap[index] = last
+    if last and #heap > 0 then
+      last[index_key] = index
+      heap_repair_up(heap, priority_key, index_key, index)
+      heap_repair_down(heap, priority_key, index_key, index)
+    end
+  end
+end
+
+local function heap_insert(heap, priority_key, index_key, item)
+  tinsert(heap, item)
+  item[index_key] = #heap
+  heap_repair_up(heap, priority_key, index_key, #heap)
+end
+
+local function heap_top(heap) -- Returns lowest priority item.
+  return heap[1]
+end
+
+---------------------------------------------------
+
 local function unregister(addr)
   local mbox = map_addr_to_mbox[addr]
   if mbox then
     map_addr_to_mbox[addr] = nil
     map_coro_to_addr[mbox.coro] = nil
+    heap_remove(timeouts, TIMEOUT, TINDEX, mbox)
   end
 end
 
@@ -116,17 +188,20 @@ local function run_main_todos() -- Must be on main thread.
   return true
 end
 
-local function deliver_envelope(envelope) -- Must run on main thread.
+local function deliver_envelope(envelope, force) -- Must run on main thread.
   if envelope then
     local dest_addr, dest_msg, track_addr, track_args = unpack(envelope)
     local mbox = map_addr_to_mbox[dest_addr]
     if mbox then
       dest_msg = dest_msg or {}
 
-      if mbox.filter and not mbox.filter(unpack(dest_msg)) then
+      if not force and mbox.filter and not mbox.filter(unpack(dest_msg)) then
         return envelope -- Caller should re-send/queue the envelope.
       end
       mbox.filter = nil -- Avoid over-filtering future messages.
+
+      heap_remove(timeouts, TIMEOUT, TINDEX, mbox)
+      mbox.timeout = nil
 
       if not resume(mbox.coro, unpack(dest_msg)) then
         finish(dest_addr)
@@ -158,7 +233,7 @@ local function cycle(force)
         -- than an explicit index-based walk, but should revisit as
         -- the current tests likely don't drive long envelope queues.
         --
-        local resend = deliver_envelope(table.remove(envelopes, 1))
+        local resend = deliver_envelope(table.remove(envelopes, 1), false)
         if resend then
           tinsert(resends, resend)
         else
@@ -172,6 +247,16 @@ local function cycle(force)
         tinsert(envelopes, resends[i])
       end
     until (#envelopes <= 0 or delivered <= 0)
+
+    -- With nothing else to do, fire appropriate timeouts.
+    --
+    local time = otime()
+    local mbox = heap_top(timeouts)
+    while mbox and mbox.timeout <= time do
+      tot_timeout = tot_timeout + 1
+      deliver_envelope({ mbox.addr, { TIMEOUT }, nil, nil }, true)
+      mbox = heap_top(timeouts)
+    end
   end
 end
 
@@ -197,8 +282,10 @@ end
 -- Receive a message via multi-return-values. Optional opt_filter
 -- function should return true when a message is acceptable.
 --
-local function recv(opt_filter)
-  map_addr_to_mbox[self_addr()].filter = opt_filter
+local function recv(opt_filter, opt_timeout)
+  local mbox = map_addr_to_mbox[self_addr()]
+  mbox.filter = opt_filter
+  mbox.timeout = opt_timeout
   tot_recv = tot_recv + 1
   return coyield(0x0004ec40) -- Magic 'recv' value.
 end
@@ -293,7 +380,8 @@ local function stats_snapshot()
            tot_send         = tot_send,
            tot_recv         = tot_recv,
            tot_yield        = tot_yield,
-           tot_cycle        = tot_cycle }
+           tot_cycle        = tot_cycle,
+           tot_timeout      = tot_timeout }
 end
 
 ----------------------------------------
