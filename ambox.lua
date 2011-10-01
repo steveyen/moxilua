@@ -91,18 +91,18 @@ local function heap_remove(heap, priority_key, index_key, item)
   local index = item[index_key]
   if index then
     item[index_key] = nil
-    local last = heap[#heap] -- Promote last item, if any.
+    local last = heap[#heap] -- Promote last item, if item != last.
     heap[#heap] = nil
-    heap[index] = last
-    if last and #heap > 0 then
+    if last ~= item then
       last[index_key] = index
+      heap[index] = last
       heap_repair_up(heap, priority_key, index_key, index)
       heap_repair_down(heap, priority_key, index_key, index)
     end
   end
 end
 
-local function heap_insert(heap, priority_key, index_key, item)
+local function heap_add(heap, priority_key, index_key, item)
   tinsert(heap, item)
   item[index_key] = #heap
   heap_repair_up(heap, priority_key, index_key, #heap)
@@ -201,6 +201,7 @@ local function deliver_envelope(envelope, force) -- Must run on main thread.
       mbox.filter = nil -- Avoid over-filtering future messages.
 
       heap_remove(timeouts, TIMEOUT, TINDEX, mbox)
+      assert(mbox.tindex == nil)
       mbox.timeout = nil
 
       if not resume(mbox.coro, unpack(dest_msg)) then
@@ -254,7 +255,7 @@ local function cycle(force)
     local mbox = heap_top(timeouts)
     while mbox and mbox.timeout <= time do
       tot_timeout = tot_timeout + 1
-      deliver_envelope({ mbox.addr, { TIMEOUT }, nil, nil }, true)
+      deliver_envelope({ mbox.addr, { TIMEOUT } }, true)
       mbox = heap_top(timeouts)
     end
 
@@ -291,7 +292,11 @@ end
 local function recv(opt_filter, opt_timeout)
   local mbox = map_addr_to_mbox[self_addr()]
   mbox.filter = opt_filter
-  mbox.timeout = opt_timeout
+  mbox.timeout = nil
+  if opt_timeout then
+    mbox.timeout = opt_timeout + otime()
+    heap_add(timeouts, TIMEOUT, TINDEX, mbox)
+  end
   tot_recv = tot_recv + 1
   return coyield(0x0004ec40) -- Magic 'recv' value. See resume().
 end
