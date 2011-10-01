@@ -314,13 +314,8 @@ end
 
 local function spawn_with(spawner, actor_func, suffix, ...)
   local child_arg  = { ... }
-  local child_addr = nil
-  local child_coro = spawner(function()
-                               actor_func(unpack(child_arg))
-                               finish(child_addr)
-                             end)
-
-  child_addr = register(child_coro, suffix)
+  local child_coro = spawner(function() actor_func(unpack(child_arg)) end)
+  local child_addr = register(child_coro, suffix)
 
   tot_actor_spawn = tot_actor_spawn + 1
 
