@@ -201,7 +201,6 @@ local function deliver_envelope(envelope, force) -- Must run on main thread.
       mbox.filter = nil -- Avoid over-filtering future messages.
 
       heap_remove(timeouts, TIMEOUT, TINDEX, mbox)
-      assert(mbox.tindex == nil)
       mbox.timeout = nil
 
       if not resume(mbox.coro, unpack(dest_msg)) then
