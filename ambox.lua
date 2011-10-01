@@ -238,9 +238,7 @@ local function cycle(force)
       end
     until (#envelopes <= 0 or delivered <= 0)
 
-    -- With nothing else to do, fire actors doing recv()-with-timeout.
-    --
-    local time = otime()
+    local time = otime()            -- Fire actors in recv()-with-timeout.
     local mbox = heap_top(timeouts)
     while mbox and mbox.timeout <= time do
       tot_timeout = tot_timeout + 1
@@ -248,12 +246,12 @@ local function cycle(force)
       mbox = heap_top(timeouts)
     end
 
-    if #envelopes > 0 then -- For messages sent by timed-out actors.
+    if #envelopes > 0 then          -- For msgs sent by timed-out actors.
       return cycle(force)
     end
 
     if mbox then
-      return mbox.timeout - time -- So caller can sleep with time.
+      return mbox.timeout - time    -- So caller can sleep with time.
     end
   end
 
@@ -312,9 +310,8 @@ local function spawn_with(spawner, actor_func, suffix, ...)
   tot_actor_spawn = tot_actor_spawn + 1
 
   table.insert(main_todos, function() resume(child_coro) end)
-
-  if corunning() == nil then -- Main thread.
-    run_main_todos()
+  if corunning() == nil then
+    run_main_todos() -- Greedily run now if we're main thread.
   end
 
   return child_addr
