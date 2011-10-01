@@ -20,12 +20,23 @@ end
 a1_addr = ambox.spawn(a1, 2)
 
 pstats("pre-cycle")
-p("cycle returns", ambox.cycle())
+t = ambox.cycle()
+assert(t == 2)
 
 pstats("pre-sleep")
 os.execute('sleep 3')
 
-p("cycle returns", ambox.cycle())
+t = ambox.cycle()
+assert(t == 2)
+
+pstats("pre-spawn")
+a2_addr = ambox.spawn(a1, 2)
+
+pstats("pre-sleep-more")
+os.execute('sleep 3')
+
+t = ambox.cycle()
+assert(t == 2)
 
 pstats("done")
 p("DONE")
