@@ -193,8 +193,6 @@ local function deliver_envelope(envelope, force) -- Must run on main thread.
     local dest_addr, dest_msg, track_addr, track_args = unpack(envelope)
     local mbox = map_addr_to_mbox[dest_addr]
     if mbox then
-      dest_msg = dest_msg or {}
-
       if not force and mbox.filter and not mbox.filter(unpack(dest_msg)) then
         return envelope -- Caller should re-send/queue the envelope.
       end
