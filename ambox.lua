@@ -380,7 +380,6 @@ end
 
 local function stats_snapshot()
   return { cur_envelopes    = #envelopes,
-           cur_timeout      = #timeouts,
            tot_actor_spawn  = tot_actor_spawn,
            tot_actor_resume = tot_actor_resume,
            tot_actor_finish = tot_actor_finish,
@@ -390,7 +389,8 @@ local function stats_snapshot()
            tot_recv         = tot_recv,
            tot_yield        = tot_yield,
            tot_cycle        = tot_cycle,
-           tot_timeout      = tot_timeout }
+           tot_timeout      = tot_timeout,
+           cur_timeout_recv = #timeouts }
 end
 
 ----------------------------------------
