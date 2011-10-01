@@ -246,7 +246,7 @@ local function cycle(force)
       end
     until (#envelopes <= 0 or delivered <= 0)
 
-    -- With nothing else to do, fire appropriate timeouts.
+    -- With nothing else to do, fire actors doing recv()-with-timeout.
     --
     local time = otime()
     local mbox = heap_top(timeouts)
@@ -256,8 +256,12 @@ local function cycle(force)
       mbox = heap_top(timeouts)
     end
 
+    if #envelopes > 0 then -- For messages sent by timed-out actors.
+      return cycle(force)
+    end
+
     if mbox then
-      return mbox.timeout - time
+      return mbox.timeout - time -- So caller can sleep with time.
     end
   end
 
