@@ -6,9 +6,8 @@
 --
 function ambox_module()
 
-local otime = os.time
-local mfloor = math.floor
-local tinsert = table.insert
+local otime, mfloor, tinsert =
+  os.time, math.floor, table.insert
 local corunning, cocreate, coresume, coyield =
   coroutine.running, coroutine.create, coroutine.resume, coroutine.yield
 
