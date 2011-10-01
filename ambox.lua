@@ -215,12 +215,9 @@ local function cycle(force)
   if force or corunning() == nil then -- Only when main thread.
     tot_cycle = tot_cycle + 1
 
-    local resends
-    local delivered
-
     repeat
-      resends = {}
-      delivered = 0
+      local resends = {}
+      local delivered = 0
 
       while run_main_todos() and (#envelopes > 0) do
         -- TODO: Simple timings show that table.remove() is faster
