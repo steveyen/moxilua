@@ -27,7 +27,7 @@ local map_addr_to_mbox = {} -- Table, key'ed by addr.
 local map_coro_to_addr = {} -- Table, key'ed by coro.
 
 local last_addr  = 0
-local envelopes  = {} -- TODO: One day have a queue per actor.
+local envelopes  = {} -- TODO: One day consider a queue per actor.
 local main_todos = {} -- Array of closures, to be run on main thread.
 local timeouts   = {} -- Min-heap array of mboxes with recv() timeout.
 
@@ -149,12 +149,12 @@ local function resume(coro, ...)
   tot_actor_resume = tot_actor_resume + 1
 
   local ok, rv = coresume(coro, ...)
-  if ok == true and rv == 0x0004ec40 then -- Magic 'recv' value.
+  if ok == true and rv == 0x0004ec40 then -- See recv() for magic value.
     return true
   end
 
-  if ok == false then
-    print(rv)
+  if ok == false then -- It wasn't a recv(), so coro finished or failed.
+    print(rv)         -- If coro failed, want to emit debug stack trace.
     if _G.debug then
       print(_G.debug.traceback(coro))
     end
