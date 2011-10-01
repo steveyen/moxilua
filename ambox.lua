@@ -378,6 +378,7 @@ end
 
 local function stats_snapshot()
   return { cur_envelopes    = #envelopes,
+           cur_timeout      = #timeouts,
            tot_actor_spawn  = tot_actor_spawn,
            tot_actor_resume = tot_actor_resume,
            tot_actor_finish = tot_actor_finish,
