@@ -233,7 +233,6 @@ local function cycle(force)
       end
 
       tot_msg_resend = tot_msg_resend + #resends
-
       for i = 1, #resends do
         tinsert(envelopes, resends[i])
       end
