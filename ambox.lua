@@ -123,7 +123,7 @@ local function unregister(addr)
   end
 end
 
-local function register(coro, opt_suffix)
+local function register(coro, opt_suffix) -- Register a coro/mbox.
   unregister(map_coro_to_addr[coro])
 
   last_addr = last_addr + 1
@@ -160,19 +160,18 @@ local function resume(coro, ...)
     end
   end
 
-  return false
-end
+  local addr = map_coro_to_addr[coro]
+  if addr then
+    local mbox = map_addr_to_mbox[addr]
+    if mbox then
+      unregister(addr)
 
-local function finish(addr) -- Invoked when an actor is done.
-  local mbox = map_addr_to_mbox[addr]
-  if mbox then
-    unregister(addr)
+      tot_actor_finish = tot_actor_finish + 1
 
-    tot_actor_finish = tot_actor_finish + 1
-
-    for watcher_addr, watcher_args in pairs(mbox.watchers or {}) do
-      for i = 1, #watcher_args do
-        send_msg(watcher_addr, watcher_args[i])
+      for watcher_addr, watcher_args in pairs(mbox.watchers or {}) do
+        for i = 1, #watcher_args do
+          send_msg(watcher_addr, watcher_args[i])
+        end
       end
     end
   end
@@ -201,9 +200,7 @@ local function deliver_envelope(envelope, force) -- Must run on main thread.
       heap_remove(timeouts, TIMEOUT, TINDEX, mbox)
       mbox.timeout = nil
 
-      if not resume(mbox.coro, unpack(dest_msg)) then
-        finish(dest_addr)
-      end
+      resume(mbox.coro, unpack(dest_msg))
 
       tot_msg_deliver = tot_msg_deliver + 1
     else
@@ -319,11 +316,7 @@ local function spawn_with(spawner, actor_func, suffix, ...)
 
   tot_actor_spawn = tot_actor_spawn + 1
 
-  table.insert(main_todos, function()
-                             if not resume(child_coro) then
-                               finish(child_addr)
-                             end
-                           end)
+  table.insert(main_todos, function() resume(child_coro) end)
 
   if corunning() == nil then -- Main thread.
     run_main_todos()
