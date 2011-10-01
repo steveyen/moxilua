@@ -257,7 +257,13 @@ local function cycle(force)
       deliver_envelope({ mbox.addr, { TIMEOUT }, nil, nil }, true)
       mbox = heap_top(timeouts)
     end
+
+    if mbox then
+      return mbox.timeout - time
+    end
   end
+
+  return nil
 end
 
 ----------------------------------------
