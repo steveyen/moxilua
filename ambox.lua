@@ -208,8 +208,8 @@ local function deliver_envelope(envelope, force) -- Must run on main thread.
   end
 end
 
--- Process all envelopes, requeuing any envelopes that did
--- not pass their mbox.filter and which need resending.
+-- Process envelopes and timeouts, requeueing any envelopes
+-- that didn't pass their mbox.filter and which need resending.
 --
 local function cycle(force)
   if force or corunning() == nil then -- Only when main thread.
@@ -238,7 +238,8 @@ local function cycle(force)
       end
     until (#envelopes <= 0 or delivered <= 0)
 
-    local time = otime()            -- Fire actors in recv()-with-timeout.
+    local time = otime()         -- Fire actors in recv()-with-timeout.
+    local nenv = #envelopes
     local mbox = heap_top(timeouts)
     while mbox and mbox.timeout <= time do
       tot_timeout = tot_timeout + 1
@@ -246,12 +247,12 @@ local function cycle(force)
       mbox = heap_top(timeouts)
     end
 
-    if #envelopes > 0 then          -- For msgs sent by timed-out actors.
+    if #envelopes > nenv then    -- For msgs sent by timed-out actors.
       return cycle(force)
     end
 
     if mbox then
-      return mbox.timeout - time    -- So caller can sleep with time.
+      return mbox.timeout - time -- So caller can sleep with time.
     end
   end
 
