@@ -160,20 +160,20 @@ local function resume(coro, ...)
     end
   end
 
+  tot_actor_finish = tot_actor_finish + 1
+
   local addr = map_coro_to_addr[coro]
   if addr then
     local mbox = map_addr_to_mbox[addr]
     if mbox then
-      unregister(addr)
-
-      tot_actor_finish = tot_actor_finish + 1
-
       for watcher_addr, watcher_args in pairs(mbox.watchers or {}) do
         for i = 1, #watcher_args do
           send_msg(watcher_addr, watcher_args[i])
         end
       end
     end
+
+    unregister(addr)
   end
 end
 
