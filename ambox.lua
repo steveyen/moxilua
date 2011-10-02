@@ -350,7 +350,7 @@ local function unwatch(target_addr, watcher_addr)
   end
 end
 
-local function stats_snapshot()
+local function stats()
   return { cur_envelopes    = #envelopes,
            tot_actor_spawn  = tot_actor_spawn,
            tot_actor_resume = tot_actor_resume,
@@ -381,7 +381,7 @@ return { cycle      = cycle,
          watch      = watch,
          unwatch    = unwatch,
          yield      = yield,
-         stats      = stats_snapshot }
+         stats      = stats }
 end
 
 return ambox_module()
