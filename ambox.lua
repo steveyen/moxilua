@@ -319,10 +319,9 @@ local function spawn(f, ...)
   return spawn_name(f, nil, ...)
 end
 
--- Registers a watcher actor on a target actor. A single watcher
--- actor can register multiple times on a target actor with different
--- args. When then target actor dies, the watcher will be notified,
--- once for each call to the original watch().
+-- Registers a watcher actor on a target actor. A single watcher actor
+-- can register N times on a target actor, and when the target actor
+-- dies, the watcher will be notified N times.
 --
 local function watch(target_addr, watcher_addr, ...)
   watcher_addr = watcher_addr or self_addr()
@@ -338,10 +337,8 @@ local function watch(target_addr, watcher_addr, ...)
   end
 end
 
--- The unwatch() is not symmetric with watch(), in that unwatch()
--- clears the entire watcher_args list for a watcher addr. That
--- is, multiple calls to watch() for a watcher_addr, will be cleared
--- out by a single call to unwatch().
+-- unwatch() is not 100% symmetric with watch(). Multiple watch()'s
+-- with a watcher_addr will be cleared out by one call to unwatch().
 --
 local function unwatch(target_addr, watcher_addr)
   watcher_addr = watcher_addr or self_addr()
