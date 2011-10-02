@@ -88,13 +88,13 @@ end
 -- A filter for ambox.recv(), where we only want awake_actor() calls.
 --
 local function filter_skt(s, skt)
-  return (s == SKT) and skt
+  return ((s == SKT) and skt) or (s == 'timeout')
 end
 
 ------------------------------------------
 
-local function recv(actor_addr, skt, pattern, part, partial_ok)
-  local s, err
+local function recv(actor_addr, skt, pattern, part, partial_ok, opt_timeout)
+  local s, err, skt_recv
 
   repeat
     skt_unwait(skt, reading, reverse_r)
@@ -111,7 +111,14 @@ local function recv(actor_addr, skt, pattern, part, partial_ok)
 
     skt_wait(skt, reading, reverse_r, actor_addr)
 
-    local s, skt_recv = ambox.recv(filter_skt)
+    s, skt_recv = ambox.recv(filter_skt, opt_timeout)
+    if s == 'timeout' then
+      skt_unwait(skt, reading, reverse_r)
+      skt_unwait(skt, writing, reverse_w)
+
+      return nil, 'timeout', part
+    end
+
     assert(skt == skt_recv)
   until false
 end
