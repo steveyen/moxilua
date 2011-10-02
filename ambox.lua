@@ -31,7 +31,7 @@ local envelopes  = {} -- Queue array; future: consider per actor queue.
 local main_todos = {} -- Queue array of closures, to be run on main thread.
 local timeouts   = {} -- Min-heap array of mboxes with recv() timeout.
 
-local TIMEOUT, TINDEX = 'timeout', 'tindex'
+local DIE, TIMEOUT, TINDEX = 'die', 'timeout', 'tindex'
 
 local function heap_swap(heap, index_key, a, b)
   heap[a][index_key] = b
@@ -187,7 +187,9 @@ local function deliver_envelope(envelope, force) -- Must run on main thread.
     local dest_addr, dest_msg, track_addr, track_args = unpack(envelope)
     local mbox = map_addr_to_mbox[dest_addr]
     if mbox then
-      if not force and mbox.filter and not mbox.filter(unpack(dest_msg)) then
+      if not force and  -- Allowing filtering unless forced or DIE'ing.
+         mbox.filter and not mbox.filter(unpack(dest_msg)) and
+         dest_msg[1] ~= DIE then
         return envelope -- Caller should re-send/queue the envelope.
       end
       mbox.filter = nil -- Avoid over-filtering future messages.
