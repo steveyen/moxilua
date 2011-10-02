@@ -30,28 +30,7 @@ local envelopes  = {} -- TODO: One day consider a queue per actor.
 local main_todos = {} -- Array of closures, to be run on main thread.
 local timeouts   = {} -- Min-heap array of mboxes with recv() timeout.
 
-local function create_mbox(addr, coro) -- Mailbox for actor coroutine.
-  return { addr     = addr,
-           coro     = coro,
-           data     = {},   -- User data for this mbox.
-           watchers = nil,  -- Array of watcher addresses.
-           filter   = nil,  -- A function passed in during recv().
-           timeout  = nil,  -- Timeout during recv().
-           tindex   = nil } -- Timeout heap index for easy removal.
-end
-
-local TIMEOUT = 'timeout'
-local TINDEX  = 'tindex'
-
-local function self_addr()
-  return map_coro_to_addr[corunning()]
-end
-
-local function user_data(addr) -- Caller uses the returned table.
-  return map_addr_to_mbox[addr or self_addr()].data
-end
-
----------------------------------------------------
+local TIMEOUT, TINDEX = 'timeout', 'tindex'
 
 local function heap_swap(heap, index_key, a, b)
   heap[a][index_key] = b
@@ -112,6 +91,24 @@ local function heap_top(heap) -- Returns lowest priority item.
 end
 
 ---------------------------------------------------
+
+local function create_mbox(addr, coro) -- Mailbox for actor coroutine.
+  return { addr     = addr,
+           coro     = coro,
+           data     = {},   -- User data for this mbox.
+           watchers = nil,  -- Array of watcher addresses.
+           filter   = nil,  -- A function passed in during recv().
+           timeout  = nil,  -- Timeout during recv().
+           tindex   = nil } -- Timeout heap index for easy removal.
+end
+
+local function self_addr()
+  return map_coro_to_addr[corunning()]
+end
+
+local function user_data(addr) -- Caller uses the returned table.
+  return map_addr_to_mbox[addr or self_addr()].data
+end
 
 local function unregister(addr)
   local mbox = map_addr_to_mbox[addr]
