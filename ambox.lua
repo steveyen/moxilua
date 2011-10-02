@@ -13,6 +13,7 @@ local corunning, cocreate, coresume, coyield =
 
 local tot_actor_spawn  = 0 -- Stats counters looks like tot_something.
 local tot_actor_resume = 0
+local tot_actor_failed = 0
 local tot_actor_finish = 0
 local tot_msg_deliver  = 0
 local tot_msg_resend   = 0
@@ -146,8 +147,10 @@ local function resume(coro, ...)
     return true
   end
 
-  if ok == false then -- It wasn't a recv(), so coro finished or failed.
-    print(rv)         -- If coro failed, want to emit debug stack trace.
+  if ok == false then
+    tot_actor_failed = tot_actor_failed + 1
+
+    print(rv)
     if _G.debug then
       print(_G.debug.traceback(coro))
     end
@@ -247,8 +250,6 @@ local function cycle(force)
 
   return nil
 end
-
-----------------------------------------
 
 local function send_later(dest_addr, ...)
   return send_msg(dest_addr, { ... }) -- The return allows TCO by lua.
@@ -353,6 +354,7 @@ local function stats_snapshot()
   return { cur_envelopes    = #envelopes,
            tot_actor_spawn  = tot_actor_spawn,
            tot_actor_resume = tot_actor_resume,
+           tot_actor_failed = tot_actor_failed,
            tot_actor_finish = tot_actor_finish,
            tot_msg_deliver  = tot_msg_deliver,
            tot_msg_resend   = tot_msg_resend,
