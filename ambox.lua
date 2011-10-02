@@ -291,7 +291,7 @@ local function yield_filter(m) return m == 0x06041e1d0 end
 local function yield()
   tot_yield = tot_yield + 1
   send_later(self_addr(), 0x06041e1d0) -- Magic 'go yield' value.
-  recv(yield_filter)
+  recv(yield_filter)                   -- See the yield_filter().
 end
 
 ----------------------------------------
@@ -305,7 +305,7 @@ local function spawn_with(spawner, actor_func, suffix, ...)
 
   table.insert(main_todos, function() resume(child_coro) end)
   if corunning() == nil then
-    run_main_todos() -- Greedily run now if we're main thread.
+    run_main_todos() -- Eagerly run now if we're main thread.
   end
 
   return child_addr
