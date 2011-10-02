@@ -34,7 +34,7 @@ local function spawn_downstream(location, done_func)
     done_func(self_addr)
   end
 
-  return ambox.spawn_name(downstream, "downstream")
+  return ambox.spawn_kind(downstream, "downstream")
 end
 
 ------------------------------------------

@@ -43,7 +43,7 @@ function upstream_accept(server_skt, sess_actor, env)
     upstream_skt:setoption('tcp-nodelay', true)
     upstream_skt:settimeout(0)
 
-    ambox.spawn_name(sess_actor, UPSTREAM_SESSIONS, env, upstream_skt)
+    ambox.spawn_kind(sess_actor, UPSTREAM_SESSIONS, env, upstream_skt)
   end
 
   asock.loop_accept(acceptor_addr, server_skt, session_handler)

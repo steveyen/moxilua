@@ -308,12 +308,12 @@ local function spawn_with(spawner, actor_func, suffix, ...)
   return child_addr
 end
 
-local function spawn_name(f, name, ...)
-  return spawn_with(cocreate, f, name, ...)
+local function spawn_kind(actor_func, suffix, ...)
+  return spawn_with(cocreate, actor_func, suffix, ...)
 end
 
 local function spawn(f, ...)
-  return spawn_name(f, nil, ...)
+  return spawn_kind(f, nil, ...)
 end
 
 -- Registers a watcher actor on a target actor. A single watcher actor
@@ -374,7 +374,7 @@ return { cycle      = cycle,
          send_later = send_later,
          send_track = send_track,
          spawn      = spawn,
-         spawn_name = spawn_name,
+         spawn_kind = spawn_kind,
          spawn_with = spawn_with,
          self_addr  = self_addr,
          user_data  = user_data,

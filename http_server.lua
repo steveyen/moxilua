@@ -164,7 +164,7 @@ local function do_accept(acceptor_skt, handler)
                       skt = asock.wrap(skt)
                       skt:setoption('tcp-nodelay', true)
                       skt:settimeout(0)
-                      ambox.spawn_name(do_req, "http", skt, handler)
+                      ambox.spawn_kind(do_req, "http", skt, handler)
                     end)
 end
 
