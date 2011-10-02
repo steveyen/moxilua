@@ -31,7 +31,20 @@ local envelopes  = {} -- Queue array; future: consider per actor queue.
 local main_todos = {} -- Queue array of closures, to be run on main thread.
 local timeouts   = {} -- Min-heap array of mboxes with recv() timeout.
 
-local DIE, TIMEOUT, TINDEX = 'die', 'timeout', 'tindex'
+local DIE = 'die'
+local ADDR, CORO, DATA, WATCHERS, FILTER, TIMEOUT, TINDEX = 1, 2, 3, 4, 5, 6, 7
+
+local function create_mbox(addr, coro) -- Mailbox for actor coroutine.
+  return { addr, -- ADDR
+           coro, -- CORO
+           {},   -- DATA     -- User data for this mbox.
+           nil,  -- WATCHERS -- Array of watcher addresses.
+           nil,  -- FILTER   -- A function passed in during recv().
+           nil,  -- TIMEOUT  -- Timeout during recv().
+           nil } -- TINDEX   -- Timeout heap index for easy removal.
+end
+
+---------------------------------------------------
 
 local function heap_swap(heap, index_key, a, b)
   heap[a][index_key] = b
@@ -90,16 +103,6 @@ end
 
 ---------------------------------------------------
 
-local function create_mbox(addr, coro) -- Mailbox for actor coroutine.
-  return { addr     = addr,
-           coro     = coro,
-           data     = {},   -- User data for this mbox.
-           watchers = nil,  -- Array of watcher addresses.
-           filter   = nil,  -- A function passed in during recv().
-           timeout  = nil,  -- Timeout during recv().
-           tindex   = nil } -- Timeout heap index for easy removal.
-end
-
 local function self_addr()
   return map_coro_to_addr[corunning()]
 end
@@ -112,7 +115,7 @@ local function unregister(addr)
   local mbox = map_addr_to_mbox[addr]
   if mbox then
     map_addr_to_mbox[addr] = nil
-    map_coro_to_addr[mbox.coro] = nil
+    map_coro_to_addr[mbox[CORO]] = nil
     heap_remove(timeouts, TIMEOUT, TINDEX, mbox)
   end
 end
@@ -162,7 +165,7 @@ local function resume(coro, ...)
   if addr then
     local mbox = map_addr_to_mbox[addr]
     if mbox then
-      for watcher_addr, watcher_args in pairs(mbox.watchers or {}) do
+      for watcher_addr, watcher_args in pairs(mbox[WATCHERS] or {}) do
         for i = 1, #watcher_args do
           send_msg(watcher_addr, watcher_args[i])
         end
@@ -188,18 +191,18 @@ local function deliver_envelope(envelope, force) -- Must run on main thread.
     local mbox = map_addr_to_mbox[dest_addr]
     if mbox then
       if not force and  -- Allowing filtering unless forced or DIE'ing.
-         mbox.filter and not mbox.filter(unpack(dest_msg)) and
+         mbox[FILTER] and not mbox[FILTER](unpack(dest_msg)) and
          dest_msg[1] ~= DIE then
         return envelope -- Caller should re-send/queue the envelope.
       end
-      mbox.filter = nil -- Avoid over-filtering future messages.
+      mbox[FILTER] = nil -- Avoid over-filtering future messages.
 
       heap_remove(timeouts, TIMEOUT, TINDEX, mbox)
-      mbox.timeout = nil
+      mbox[TIMEOUT] = nil
 
       tot_msg_deliver = tot_msg_deliver + 1
 
-      resume(mbox.coro, unpack(dest_msg))
+      resume(mbox[CORO], unpack(dest_msg))
     else
       send_msg(track_addr, track_args)
     end
@@ -235,9 +238,9 @@ local function cycle(force)
     local time = otime()         -- Fire actors in recv()-with-timeout.
     local nenv = #envelopes
     local mbox = heap_top(timeouts)
-    while mbox and mbox.timeout <= time do
+    while mbox and mbox[TIMEOUT] <= time do
       tot_timeout = tot_timeout + 1
-      deliver_envelope({ mbox.addr, { TIMEOUT } }, true)
+      deliver_envelope({ mbox[ADDR], { 'timeout' } }, true)
       mbox = heap_top(timeouts)
     end
 
@@ -246,7 +249,7 @@ local function cycle(force)
     end
 
     if mbox then
-      return mbox.timeout - time -- So caller can have timed sleep.
+      return mbox[TIMEOUT] - time -- So caller can have timed sleep.
     end
   end
 
@@ -275,10 +278,10 @@ end
 --
 local function recv(opt_filter, opt_timeout)
   local mbox = map_addr_to_mbox[self_addr()]
-  mbox.filter = opt_filter
-  mbox.timeout = nil
+  mbox[FILTER] = opt_filter
+  mbox[TIMEOUT] = nil
   if opt_timeout then
-    mbox.timeout = opt_timeout + otime()
+    mbox[TIMEOUT] = opt_timeout + otime()
     heap_add(timeouts, TIMEOUT, TINDEX, mbox)
   end
   tot_recv = tot_recv + 1
@@ -327,8 +330,8 @@ local function watch(target_addr, watcher_addr, ...)
 
   local mbox = map_addr_to_mbox[target_addr]
   if mbox then
-    local w = mbox.watchers or {}
-    mbox.watchers = w
+    local w = mbox[WATCHERS] or {}
+    mbox[WATCHERS] = w
     local a = w[watcher_addr] or {}
     w[watcher_addr] = a
 
@@ -344,7 +347,7 @@ local function unwatch(target_addr, watcher_addr)
 
   local mbox = map_addr_to_mbox[target_addr]
   if mbox then
-    local watchers = mbox.watchers
+    local watchers = mbox[WATCHERS]
     if watchers and
        watchers[watcher_addr] then
       watchers[watcher_addr] = nil
