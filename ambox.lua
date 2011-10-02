@@ -40,43 +40,40 @@ end
 
 local function heap_fix_up(heap, priority_key, index_key, index)
   local item = heap[index]
-  if item then
-    local parenti = mfloor(index / 2)
-    local parent = heap[parenti]
-    if parent and parent[priority_key] > item[priority_key] then
-      heap_swap(heap, index_key, parenti, index)
-      return heap_fix_up(heap, priority_key, index_key, parenti)
-    end
+  if not item then return end
+  local parenti = mfloor(index / 2)
+  local parent = heap[parenti]
+  if parent and parent[priority_key] > item[priority_key] then
+    heap_swap(heap, index_key, parenti, index)
+    return heap_fix_up(heap, priority_key, index_key, parenti)
   end
 end
 
 local function heap_fix_down(heap, priority_key, index_key, index)
   local item = heap[index]
-  if item then
-    local priority = item[priority_key]
-    for i = 0, 1 do                -- First left child, then right.
-      local childi = index * 2 + i -- Child index.
-      local child = heap[childi]
-      if child and child[priority_key] < priority then
-        heap_swap(heap, index_key, childi, index)
-        return heap_fix_down(heap, priority_key, index_key, childi)
-      end
+  if not item then return end
+  local priority = item[priority_key]
+  for i = 0, 1 do                -- First left child, then right.
+    local childi = index * 2 + i -- Child index.
+    local child = heap[childi]
+    if child and child[priority_key] < priority then
+      heap_swap(heap, index_key, childi, index)
+      return heap_fix_down(heap, priority_key, index_key, childi)
     end
   end
 end
 
 local function heap_remove(heap, priority_key, index_key, item)
   local index = item[index_key]
-  if index then
-    item[index_key] = nil
-    local last = heap[#heap] -- Promote last item, if item != last.
-    heap[#heap] = nil
-    if last ~= item then
-      last[index_key] = index
-      heap[index] = last
-      heap_fix_up(heap, priority_key, index_key, index)
-      heap_fix_down(heap, priority_key, index_key, index)
-    end
+  if not index then return end
+  item[index_key] = nil
+  local last = heap[#heap] -- Promote last item, if item != last.
+  heap[#heap] = nil
+  if last ~= item then
+    last[index_key] = index
+    heap[index] = last
+    heap_fix_up(heap, priority_key, index_key, index)
+    heap_fix_down(heap, priority_key, index_key, index)
   end
 end
 
@@ -179,7 +176,6 @@ local function run_main_todos() -- Must be on main thread.
     main_todos = {}      -- that we will finish the loop.
     for i = 1, #t do t[i]() end
   end
-
   return true
 end
 
@@ -196,9 +192,9 @@ local function deliver_envelope(envelope, force) -- Must run on main thread.
       heap_remove(timeouts, TIMEOUT, TINDEX, mbox)
       mbox.timeout = nil
 
-      resume(mbox.coro, unpack(dest_msg))
-
       tot_msg_deliver = tot_msg_deliver + 1
+
+      resume(mbox.coro, unpack(dest_msg))
     else
       send_msg(track_addr, track_args)
     end
