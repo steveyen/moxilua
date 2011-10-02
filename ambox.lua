@@ -144,7 +144,7 @@ local function resume(coro, ...)
 
   local ok, rv = coresume(coro, ...)
   if ok == true and rv == 0x0004ec40 then -- See recv() for magic value.
-    return true
+    return
   end
 
   if ok == false then
