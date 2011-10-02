@@ -208,15 +208,11 @@ local function cycle(force)
   if force or corunning() == nil then -- Only when main thread.
     tot_cycle = tot_cycle + 1
 
-    repeat
-      local resends = {}
-      local delivered = 0
+    repeat                -- The central loop to deliver queued envelopes.
+      local resends = {}  -- Resends means filters rejected an envelope.
+      local delivered = 0 -- Stop the loop when we make no progress.
 
-      while run_main_todos() and (#envelopes > 0) do
-        -- TODO: Simple timings show that table.remove() is faster
-        -- than an explicit index-based walk, but should revisit as
-        -- the current tests likely don't drive long envelope queues.
-        --
+      while run_main_todos() and #envelopes > 0 do
         local resend = deliver_envelope(table.remove(envelopes, 1), false)
         if resend then
           tinsert(resends, resend)
@@ -245,7 +241,7 @@ local function cycle(force)
     end
 
     if mbox then
-      return mbox.timeout - time -- So caller can sleep with time.
+      return mbox.timeout - time -- So caller can have timed sleep.
     end
   end
 
