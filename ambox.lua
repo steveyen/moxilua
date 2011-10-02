@@ -25,9 +25,9 @@ local tot_timeout      = 0
 local map_addr_to_mbox = {} -- Table, key'ed by addr.
 local map_coro_to_addr = {} -- Table, key'ed by coro.
 
-local last_addr  = 0
-local envelopes  = {} -- TODO: One day consider a queue per actor.
-local main_todos = {} -- Array of closures, to be run on main thread.
+local last_addr  = 0  -- Last created mailbox addr.
+local envelopes  = {} -- Queue array; future: consider per actor queue.
+local main_todos = {} -- Queue array of closures, to be run on main thread.
 local timeouts   = {} -- Min-heap array of mboxes with recv() timeout.
 
 local TIMEOUT, TINDEX = 'timeout', 'tindex'
@@ -83,7 +83,7 @@ local function heap_add(heap, priority_key, index_key, item)
   heap_fix_up(heap, priority_key, index_key, #heap)
 end
 
-local function heap_top(heap) -- Returns lowest priority item.
+local function heap_top(heap) -- Returns min-heap lowest priority item.
   return heap[1]
 end
 
@@ -170,7 +170,7 @@ local function resume(coro, ...)
   end
 end
 
-local function run_main_todos() -- Must be on main thread.
+local function run_main_todos() -- Run queued closures on the main thread.
   if #main_todos > 0 then
     local t = main_todos -- Snapshot/swap main_todos, to ensure
     main_todos = {}      -- that we will finish the loop.
