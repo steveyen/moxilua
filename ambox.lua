@@ -213,12 +213,12 @@ end
 -- that didn't pass their mbox[FILTER] and which need resending.
 --
 local function cycle(force)
-  if force or corunning() == nil then -- Only when main thread.
+  if force or corunning() == nil then -- Only during force or main thread.
     tot_cycle = tot_cycle + 1
 
     repeat                -- The central loop to deliver queued envelopes.
-      local resends = {}  -- Resends means filters rejected an envelope.
-      local delivered = 0 -- Stop the loop when we make no progress.
+      local resends = {}  -- Resend when some filter rejected an envelope.
+      local delivered = 0 -- Break loop when there's no delivery progress.
 
       while run_main_todos() and #envelopes > 0 do
         local resend = deliver_envelope(table.remove(envelopes, 1), false)
@@ -235,7 +235,7 @@ local function cycle(force)
       end
     until (#envelopes <= 0 or delivered <= 0)
 
-    local time = otime()         -- Fire actors in recv()-with-timeout.
+    local time = otime()          -- Awake actors in timeout'ed recv().
     local nenv = #envelopes
     local mbox = heap_top(timeouts)
     while mbox and mbox[TIMEOUT] <= time do
@@ -244,12 +244,12 @@ local function cycle(force)
       mbox = heap_top(timeouts)
     end
 
-    if #envelopes > nenv then    -- For msgs sent by timed-out actors.
-      return cycle(force)
+    if #envelopes > nenv then     -- In case timeout'ed actors sent any
+      return cycle(force)         -- messages, handle by cycle recurse.
     end
 
     if mbox then
-      return mbox[TIMEOUT] - time -- So caller can have timed sleep.
+      return mbox[TIMEOUT] - time -- Allows caller to have timed sleep.
     end
   end
 
