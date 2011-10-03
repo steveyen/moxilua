@@ -7,9 +7,12 @@ memcached_server = {
 
 function upstream_session_memcached_ascii(env, upstream_skt)
   local self_addr = ambox.self_addr()
+  local recv = asock.recv
+  local send = asock.send
+
   local req = true
   while req do
-    req = asock.recv(self_addr, upstream_skt)
+    req = recv(self_addr, upstream_skt)
     if req then
       -- Using util/split() seems slightly slower than string.gfind()
       -- on simplistic tests.
@@ -23,7 +26,7 @@ function upstream_session_memcached_ascii(env, upstream_skt)
             req = nil
           end
         else
-          asock.send(self_addr, upstream_skt, "ERROR\r\n")
+          send(self_addr, upstream_skt, "ERROR\r\n")
         end
       end
     end
@@ -36,10 +39,12 @@ end
 
 function upstream_session_memcached_binary(env, upstream_skt)
   local self_addr = ambox.self_addr()
-  local mpb = memcached_protocol_binary
-  local req = true
-  local err, key, ext, data
+  local recv = asock.recv
+  local send = asock.send
 
+  local mpb = memcached_protocol_binary
+  local err, key, ext, data
+  local req = true
   while req do
     req, err, args = mpb.pack.recv_request(upstream_skt)
     if req then
@@ -56,7 +61,7 @@ function upstream_session_memcached_binary(env, upstream_skt)
             opaque = pack.opaque(req, 'request')
           })
 
-        asock.send(self_addr, upstream_skt, err_unknown)
+        send(self_addr, upstream_skt, err_unknown)
       end
     end
   end
