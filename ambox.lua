@@ -55,18 +55,18 @@ local function heap_swap(heap, index_key, a, b)
   heap[a], heap[b] = heap[b], heap[a]
 end
 
-local function heap_fix_up(heap, priority_key, index_key, index)
+local function heap_swap_up(heap, priority_key, index_key, index)
   local item = heap[index]
   if not item then return end
   local parenti = mfloor(index / 2)
   local parent = heap[parenti]
   if parent and parent[priority_key] > item[priority_key] then
     heap_swap(heap, index_key, parenti, index)
-    return heap_fix_up(heap, priority_key, index_key, parenti)
+    return heap_swap_up(heap, priority_key, index_key, parenti)
   end
 end
 
-local function heap_fix_down(heap, priority_key, index_key, index)
+local function heap_swap_down(heap, priority_key, index_key, index)
   local item = heap[index]
   if not item then return end
   local priority = item[priority_key]
@@ -75,7 +75,7 @@ local function heap_fix_down(heap, priority_key, index_key, index)
     local child = heap[childi]
     if child and child[priority_key] < priority then
       heap_swap(heap, index_key, childi, index)
-      return heap_fix_down(heap, priority_key, index_key, childi)
+      return heap_swap_down(heap, priority_key, index_key, childi)
     end
   end
 end
@@ -89,15 +89,15 @@ local function heap_remove(heap, priority_key, index_key, item)
   if last ~= item then
     last[index_key] = index
     heap[index] = last
-    heap_fix_up(heap, priority_key, index_key, index)
-    heap_fix_down(heap, priority_key, index_key, index)
+    heap_swap_up(heap, priority_key, index_key, index)
+    heap_swap_down(heap, priority_key, index_key, index)
   end
 end
 
 local function heap_add(heap, priority_key, index_key, item)
   tinsert(heap, item)
   item[index_key] = #heap
-  heap_fix_up(heap, priority_key, index_key, #heap)
+  heap_swap_up(heap, priority_key, index_key, #heap)
 end
 
 ---------------------------------------------------
