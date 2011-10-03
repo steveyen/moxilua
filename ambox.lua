@@ -130,11 +130,9 @@ local function register(coro, opt_suffix) -- Register a coro/mbox.
   end
 
   local mbox = create_mbox(addr, coro)
-
   map_addr_to_mbox[addr] = mbox
   map_coro_to_mbox[coro] = mbox
   map_coro_to_addr[coro] = addr
-
   return addr
 end
 
@@ -204,7 +202,6 @@ local function deliver_envelope(envelope, force) -- Must run on main thread.
       mbox[TIMEOUT] = nil
 
       tot_msg_deliver = tot_msg_deliver + 1
-
       resume(mbox[CORO], unpack(dest_msg))
     else
       send_msg(track_addr, track_args)
