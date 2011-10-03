@@ -24,6 +24,7 @@ local tot_cycle        = 0
 local tot_timeout      = 0
 
 local map_addr_to_mbox = {} -- Table, key'ed by addr.
+local map_coro_to_mbox = {} -- Table, key'ed by coro, allows faster recv().
 local map_coro_to_addr = {} -- Table, key'ed by coro.
 
 local last_addr  = 0  -- Last created mailbox addr.
@@ -115,6 +116,7 @@ local function unregister(addr)
   local mbox = map_addr_to_mbox[addr]
   if mbox then
     map_addr_to_mbox[addr] = nil
+    map_coro_to_mbox[mbox[CORO]] = nil
     map_coro_to_addr[mbox[CORO]] = nil
     heap_remove(timeouts, TIMEOUT, TINDEX, mbox)
   end
@@ -129,7 +131,10 @@ local function register(coro, opt_suffix) -- Register a coro/mbox.
     addr = addr .. "." .. opt_suffix
   end
 
-  map_addr_to_mbox[addr] = create_mbox(addr, coro)
+  local mbox = create_mbox(addr, coro)
+
+  map_addr_to_mbox[addr] = mbox
+  map_coro_to_mbox[coro] = mbox
   map_coro_to_addr[coro] = addr
 
   return addr
@@ -190,10 +195,10 @@ local function deliver_envelope(envelope, force) -- Must run on main thread.
     local dest_addr, dest_msg, track_addr, track_args = unpack(envelope)
     local mbox = map_addr_to_mbox[dest_addr]
     if mbox then
-      if not force and  -- Allowing filtering unless forced or DIE'ing.
+      if not force and   -- Allowing filtering unless forced or DIE'ing.
          mbox[FILTER] and not mbox[FILTER](unpack(dest_msg)) and
          dest_msg[1] ~= DIE then
-        return envelope -- Caller should re-send/queue the envelope.
+        return envelope  -- Caller should re-send/queue the envelope.
       end
       mbox[FILTER] = nil -- Avoid over-filtering future messages.
 
@@ -277,7 +282,7 @@ end
 -- function should return true when a message is acceptable.
 --
 local function recv(opt_filter, opt_timeout)
-  local mbox = map_addr_to_mbox[self_addr()]
+  local mbox = map_coro_to_mbox[corunning()]
   mbox[FILTER] = opt_filter
   mbox[TIMEOUT] = nil
   if opt_timeout then
