@@ -4,6 +4,8 @@ function asock_module(socket)
 
 socket = socket or require("socket")
 
+local tinsert = table.insert
+
 local reading = {} -- Array of sockets for next select().
 local writing = {} -- Array of sockets for next select().
 
@@ -42,7 +44,7 @@ local function skt_wait(skt, sockets, reverse, actor_addr)
   assert(not reverse[skt])
 
   waiting_actor[skt] = actor_addr
-  table.insert(sockets, skt)
+  tinsert(sockets, skt)
   reverse[skt] = #sockets
 end
 
