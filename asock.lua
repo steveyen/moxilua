@@ -5,6 +5,8 @@ function asock_module(socket)
 socket = socket or require("socket")
 
 local tinsert = table.insert
+local asend = ambox.send_later
+local arecv = ambox.recv
 
 local reading = {} -- Array of sockets for next select().
 local writing = {} -- Array of sockets for next select().
@@ -59,7 +61,7 @@ local function awake_actor(skt)
   skt_unwait(skt, writing, reverse_w)
 
   if actor_addr then
-    ambox.send_later(actor_addr, SKT, skt)
+    asend(actor_addr, SKT, skt)
   end
 end
 
@@ -113,7 +115,7 @@ local function recv(actor_addr, skt, pattern, part, partial_ok, opt_timeout)
 
     skt_wait(skt, reading, reverse_r, actor_addr)
 
-    s, skt_recv = ambox.recv(filter_skt, opt_timeout)
+    s, skt_recv = arecv(filter_skt, opt_timeout)
     if s == 'timeout' then
       skt_unwait(skt, reading, reverse_r)
       skt_unwait(skt, writing, reverse_w)
@@ -141,7 +143,7 @@ local function send(actor_addr, skt, data, from, to)
 
     skt_wait(skt, writing, reverse_w, actor_addr)
 
-    local s, skt_recv = ambox.recv(filter_skt)
+    local s, skt_recv = arecv(filter_skt)
     assert(skt == skt_recv)
   until false
 end
@@ -160,7 +162,7 @@ local function loop_accept(actor_addr, skt, handler, timeout)
 
     skt_wait(skt, reading, reverse_r, actor_addr)
 
-    local s, skt_recv = ambox.recv(filter_skt)
+    local s, skt_recv = arecv(filter_skt)
     assert(skt == skt_recv)
   until false
 end
@@ -198,7 +200,6 @@ return { step = step,
          send = send,
          wrap = wrap,
          loop_accept = loop_accept }
-
 end
 
 return asock_module()
