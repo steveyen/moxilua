@@ -317,8 +317,8 @@ local function spawn_kind(actor_func, suffix, ...)
   return spawn_with(cocreate, actor_func, suffix, ...)
 end
 
-local function spawn(f, ...)
-  return spawn_kind(f, nil, ...)
+local function spawn(actor_func, ...)
+  return spawn_kind(actor_func, nil, ...)
 end
 
 -- Registers a watcher actor on a target actor. A single watcher actor
