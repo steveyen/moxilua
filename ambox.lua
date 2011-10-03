@@ -47,6 +47,8 @@ end
 
 ---------------------------------------------------
 
+local function heap_top(heap) return heap[1] end -- Basic min-heap.
+
 local function heap_swap(heap, index_key, a, b)
   heap[a][index_key] = b
   heap[b][index_key] = a
@@ -96,10 +98,6 @@ local function heap_add(heap, priority_key, index_key, item)
   tinsert(heap, item)
   item[index_key] = #heap
   heap_fix_up(heap, priority_key, index_key, #heap)
-end
-
-local function heap_top(heap) -- Returns min-heap lowest priority item.
-  return heap[1]
 end
 
 ---------------------------------------------------
