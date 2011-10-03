@@ -215,7 +215,7 @@ local function deliver_envelope(envelope, force) -- Must run on main thread.
 end
 
 -- Process envelopes and timeouts, requeueing any envelopes
--- that didn't pass their mbox.filter and which need resending.
+-- that didn't pass their mbox[FILTER] and which need resending.
 --
 local function cycle(force)
   if force or corunning() == nil then -- Only when main thread.
