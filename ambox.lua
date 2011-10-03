@@ -1,6 +1,6 @@
 -- ambox - actor mailboxes
 --
--- Enables simple, cooperative actor-like programs. Based on lua
+-- Enables simple, fast, cooperative actor-like programs. Based on lua
 -- coroutines, where each actor (a managed coroutine) has an address
 -- and can asynchronously send/recv() messages to each other.
 --
