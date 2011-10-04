@@ -195,7 +195,8 @@ local wrap_mt = {
     getpeername = function(self) return self[1]:getpeername() end,
     getsockname = function(self) return self[1]:getsockname() end,
     getstats    = function(self) return self[1]:getstats() end,
-}}
+  }
+}
 
 local function wrap(skt)
   return setmetatable({ skt }, wrap_mt)
