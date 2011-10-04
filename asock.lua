@@ -3,6 +3,7 @@
 function asock_module(socket)
 
 socket = socket or require("socket")
+select = socket.select
 
 local tinsert = table.insert
 local asend = ambox.send_later
@@ -83,8 +84,7 @@ local function step(timeout)
     return nil
   end
 
-  local readable, writable, err =
-    socket.select(reading, writing, timeout)
+  local readable, writable, err = select(reading, writing, timeout)
 
   process_ready(writable, "w")
   process_ready(readable, "r")
