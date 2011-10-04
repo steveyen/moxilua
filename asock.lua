@@ -11,15 +11,15 @@ local aself = ambox.self_addr
 local asend = ambox.send_later
 local arecv = ambox.recv
 
-local reading = {} -- Array of sockets for next select().
-local writing = {} -- Array of sockets for next select().
+local reading = {} -- Array of reading sockets for next select().
+local writing = {} -- Array of writing sockets for next select().
 
 local reverse_r = {} -- Reverse lookup socket to reading index.
 local reverse_w = {} -- Reverse lookup socket to writing index.
 
-local waiting_actor = {} -- Keyed by socket, value is actor addr.
+local waiting_actor = {} -- Key is socket, value is actor addr.
 
-local SKT = 0x000050CE4 -- For ambox message filtering.
+local SKT = 0x000050CE4  -- For ambox message filter_skt().
 
 local tot_send      = 0
 local tot_send_wait = 0
