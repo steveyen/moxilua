@@ -82,6 +82,10 @@ local function process_ready(ready, name)
 end
 
 local function step(timeout)
+  if #reading <= 0 and #writing <= 0 and not timeout then
+    return nil
+  end
+
   local readable, writable, err = select(reading, writing, timeout)
 
   process_ready(writable, "w")
