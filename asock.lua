@@ -14,8 +14,8 @@ local arecv = ambox.recv
 local reading = {} -- Array of sockets for next select().
 local writing = {} -- Array of sockets for next select().
 
-local reverse_r = {} -- Reverse lookup socket to reading/writing index.
-local reverse_w = {} -- Reverse lookup socket to reading/writing index.
+local reverse_r = {} -- Reverse lookup socket to reading index.
+local reverse_w = {} -- Reverse lookup socket to writing index.
 
 local waiting_actor = {} -- Keyed by socket, value is actor addr.
 
