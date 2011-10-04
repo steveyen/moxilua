@@ -18,6 +18,13 @@ local waiting_actor = {} -- Keyed by socket, value is actor addr.
 
 local SKT = 0x000050CE4 -- For ambox message filtering.
 
+local tot_send = 0
+local tot_send_wait = 0
+
+local tot_recv = 0
+local tot_recv_wait = 0
+local tot_recv_timeout = 0
+
 ------------------------------------------
 
 local function skt_unwait(skt, sockets, reverse)
@@ -98,6 +105,8 @@ end
 ------------------------------------------
 
 local function recv(actor_addr, skt, pattern, part, partial_ok, opt_timeout)
+  tot_recv = tot_recv + 1
+
   local s, err, skt_recv
 
   repeat
@@ -105,18 +114,23 @@ local function recv(actor_addr, skt, pattern, part, partial_ok, opt_timeout)
     skt_unwait(skt, writing, reverse_w)
 
     s, err, part = skt:receive(pattern, part)
-    if s or err ~= "timeout" or
-       (partial_ok and
-        part ~= "" and
-        part ~= nil and
-        type(pattern) == "number") then
+    if s or err ~= "timeout" then
       return s, err, part
     end
 
+    if partial_ok and
+       part ~= "" and
+       part ~= nil and
+       type(pattern) == "number" then
+      return s, err, part
+    end
+
+    tot_recv_wait = tot_recv_wait + 1
     skt_wait(skt, reading, reverse_r, actor_addr)
 
     s, skt_recv = arecv(filter_skt, opt_timeout)
     if s == 'timeout' then
+      tot_recv_timeout = tot_recv_timeout + 1
       skt_unwait(skt, reading, reverse_r)
       skt_unwait(skt, writing, reverse_w)
 
@@ -128,6 +142,8 @@ local function recv(actor_addr, skt, pattern, part, partial_ok, opt_timeout)
 end
 
 local function send(actor_addr, skt, data, from, to)
+  tot_send = tot_send + 1
+
   from = from or 1
 
   local lastIndex = from - 1
@@ -138,9 +154,10 @@ local function send(actor_addr, skt, data, from, to)
 
     local s, err, lastIndex = skt:send(data, lastIndex + 1, to)
     if s or err ~= "timeout" then
-       return s, err, lastIndex
+      return s, err, lastIndex
     end
 
+    tot_send_wait = tot_send_wait + 1
     skt_wait(skt, writing, reverse_w, actor_addr)
 
     local s, skt_recv = arecv(filter_skt)
@@ -193,13 +210,22 @@ local function wrap(skt)
   return setmetatable({ skt = skt }, wrap_mt)
 end
 
+local function stats()
+  return { tot_send         = tot_send,
+           tot_send_wait    = tot_send_wait,
+           tot_recv         = tot_recv,
+           tot_recv_wait    = tot_recv_wait,
+           tot_recv_timeout = tot_recv_timeout }
+end
+
 ------------------------------------------
 
 return { step = step,
          recv = recv,
          send = send,
          wrap = wrap,
-         loop_accept = loop_accept }
+         loop_accept = loop_accept,
+         stats = stats }
 end
 
 return asock_module()
