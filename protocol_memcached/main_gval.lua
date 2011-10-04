@@ -5,7 +5,7 @@
 --
 -- We even store the gval optimized for GET requests.
 --
-local gval = "VALUE key 0 0\r\n\r\nEND\r\n"
+local gval = "END\r\n"
 
 ----------------------------------------
 
