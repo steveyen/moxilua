@@ -28,6 +28,7 @@ local astats = ambox.stats
 local srecv  = asock.recv
 local ssend  = asock.send
 local sstep  = asock.step
+local sstats = asock.stats
 
 function sock_recv(skt, pattern, part, partial_ok)
   return srecv(aself(), skt, pattern, part, partial_ok)
@@ -146,6 +147,7 @@ while true do
 
   if d and (i % 20000 == 0) then
     for k, v in pairs(astats()) do print(k, v) end
+    for k, v in pairs(sstats()) do print(k, v) end
     print("")
   end
 
