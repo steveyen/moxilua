@@ -178,27 +178,27 @@ end
 local wrap_mt = {
   __index = {
     send = function(self, data, from, to)
-             return send(aself(), self.skt, data, from, to)
+             return send(aself(), self[1], data, from, to)
            end,
     receive = function(self, pattern, part)
-                return recv(aself(), self.skt, pattern, part)
+                return recv(aself(), self[1], pattern, part)
               end,
-    flush       = function(self) return self.skt:flush() end,
-    close       = function(self) return self.skt:close() end,
-    shutdown    = function(self) return self.skt:shutdown() end,
+    flush       = function(self) return self[1]:flush() end,
+    close       = function(self) return self[1]:close() end,
+    shutdown    = function(self) return self[1]:shutdown() end,
     setoption   = function(self, option, value)
-                    return self.skt:setoption(option, value)
+                    return self[1]:setoption(option, value)
                   end,
     settimeout  = function(self, time, mode)
-                    return self.skt:settimeout(time, mode)
+                    return self[1]:settimeout(time, mode)
                   end,
-    getpeername = function(self) return self.skt:getpeername() end,
-    getsockname = function(self) return self.skt:getsockname() end,
-    getstats    = function(self) return self.skt:getstats() end,
+    getpeername = function(self) return self[1]:getpeername() end,
+    getsockname = function(self) return self[1]:getsockname() end,
+    getstats    = function(self) return self[1]:getstats() end,
 }}
 
 local function wrap(skt)
-  return setmetatable({ skt = skt }, wrap_mt)
+  return setmetatable({ skt }, wrap_mt)
 end
 
 local function stats()
