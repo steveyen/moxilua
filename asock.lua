@@ -6,6 +6,8 @@ socket = socket or require("socket")
 select = socket.select
 
 local tinsert = table.insert
+
+local aself = ambox.self_addr
 local asend = ambox.send_later
 local arecv = ambox.recv
 
@@ -176,10 +178,10 @@ end
 local wrap_mt = {
   __index = {
     send = function(self, data, from, to)
-             return send(ambox.self_addr(), self.skt, data, from, to)
+             return send(aself(), self.skt, data, from, to)
            end,
     receive = function(self, pattern, part)
-                return recv(ambox.self_addr(), self.skt, pattern, part)
+                return recv(aself(), self.skt, pattern, part)
               end,
     flush       = function(self) return self.skt:flush() end,
     close       = function(self) return self.skt:close() end,
