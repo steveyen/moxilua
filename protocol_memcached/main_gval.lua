@@ -11,6 +11,9 @@ local gval = "END\r\n"
 
 socket = require('socket')
 
+local sbyte = string.byte
+local sfind = string.gfind
+
 ambox = require('ambox')
 asock = require('asock')
 
@@ -73,17 +76,13 @@ memcached_server_ascii_gval = {
 
 function upstream_session_memcached_ascii_gval(env, upstream_skt)
   local self_addr = ambox.self_addr()
-  local recv = asock.recv
-  local send = asock.send
-  local sbyte = string.byte
-  local sfind = string.gfind
 
   local req = true
   while req do
-    req = recv(self_addr, upstream_skt)
+    req = srecv(self_addr, upstream_skt)
     if req then
       if sbyte(req, 1) == 103 then -- 'g' assuming a 'get'
-        send(self_addr, upstream_skt, gval)
+        ssend(self_addr, upstream_skt, gval)
       else
         -- Using util/split() seems slightly slower than string.gfind()
         -- on simplistic tests.
@@ -97,7 +96,7 @@ function upstream_session_memcached_ascii_gval(env, upstream_skt)
               req = nil
             end
           else
-            send(self_addr, upstream_skt, "ERROR\r\n")
+            ssend(self_addr, upstream_skt, "ERROR\r\n")
           end
         end
       end
