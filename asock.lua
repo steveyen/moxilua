@@ -18,11 +18,11 @@ local waiting_actor = {} -- Keyed by socket, value is actor addr.
 
 local SKT = 0x000050CE4 -- For ambox message filtering.
 
-local tot_send = 0
+local tot_send      = 0
 local tot_send_wait = 0
 
-local tot_recv = 0
-local tot_recv_wait = 0
+local tot_recv         = 0
+local tot_recv_wait    = 0
 local tot_recv_timeout = 0
 
 ------------------------------------------
@@ -108,11 +108,7 @@ local function recv(actor_addr, skt, pattern, part, partial_ok, opt_timeout)
   tot_recv = tot_recv + 1
 
   local s, err, skt_recv
-
   repeat
-    skt_unwait(skt, reading, reverse_r)
-    skt_unwait(skt, writing, reverse_w)
-
     s, err, part = skt:receive(pattern, part)
     if s or err ~= "timeout" then
       return s, err, part
@@ -144,15 +140,11 @@ end
 local function send(actor_addr, skt, data, from, to)
   tot_send = tot_send + 1
 
-  from = from or 1
+  local lastIndex = (from or 1) - 1
 
-  local lastIndex = from - 1
-
+  local s, err, skt_recv
   repeat
-    skt_unwait(skt, reading, reverse_r)
-    skt_unwait(skt, writing, reverse_w)
-
-    local s, err, lastIndex = skt:send(data, lastIndex + 1, to)
+    s, err, lastIndex = skt:send(data, lastIndex + 1, to)
     if s or err ~= "timeout" then
       return s, err, lastIndex
     end
@@ -160,7 +152,7 @@ local function send(actor_addr, skt, data, from, to)
     tot_send_wait = tot_send_wait + 1
     skt_wait(skt, writing, reverse_w, actor_addr)
 
-    local s, skt_recv = arecv(filter_skt)
+    s, skt_recv = arecv(filter_skt)
     assert(skt == skt_recv)
   until false
 end
@@ -169,9 +161,6 @@ local function loop_accept(actor_addr, skt, handler, timeout)
   skt:settimeout(timeout or 0)
 
   repeat
-    skt_unwait(skt, reading, reverse_r)
-    skt_unwait(skt, writing, reverse_w)
-
     local client_skt, err = skt:accept()
     if client_skt then
       handler(client_skt)
