@@ -8,7 +8,6 @@ local function spawn_downstream(location, done_func)
     local self_addr = ambox.self_addr()
     while dconn do
       local what, notify_addr, response, handler, args, notify_data = ambox.recv()
-
       if what == "fwd" then
         args = args or {}
 

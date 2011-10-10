@@ -24,7 +24,7 @@ local max_send = tonumber(arg[2] or '500000')
 local tot_send = 0
 local tot_recv = 0
 
-local max_delta = 10 -- How many commands to send ahead of replies.
+local max_delta = 1000 -- How many commands to send ahead of replies.
 local high_delta = 0
 
 local sender_addr
