@@ -29,7 +29,6 @@ local map_coro_to_addr = {} -- Table, key'ed by coro.
 
 local last_addr  = 0  -- Last created mailbox addr.
 local envelopes  = {} -- Queue array; future: consider per actor queue.
-local main_todos = {} -- Queue array of closures, to be run on main thread.
 local timeouts   = {} -- Min-heap array of mboxes with recv() timeout.
 
 local DIE = 'die'
@@ -177,15 +176,6 @@ local function resume(coro, ...)
   end
 end
 
-local function run_main_todos() -- Run queued closures on the main thread.
-  if #main_todos > 0 then
-    local t = main_todos -- Snapshot/swap main_todos, to ensure
-    main_todos = {}      -- that we will finish the loop.
-    for i = 1, #t do t[i]() end
-  end
-  return true
-end
-
 local function deliver_envelope(envelope, force) -- Must run on main thread.
   if envelope then
     local dest_addr, dest_msg, track_addr, track_args = unpack(envelope)
@@ -220,7 +210,7 @@ local function cycle(force)
       local resends = {}  -- Resend when some filter rejected an envelope.
       local delivered = 0 -- Break loop when there's no delivery progress.
 
-      while run_main_todos() and #envelopes > 0 do
+      while #envelopes > 0 do
         local resend = deliver_envelope(table.remove(envelopes, 1), false)
         if resend then
           tinsert(resends, resend)
@@ -304,12 +294,7 @@ local function spawn_with(spawner, actor_func, suffix, ...)
   local child_addr = register(child_coro, suffix)
 
   tot_actor_spawn = tot_actor_spawn + 1
-
-  table.insert(main_todos, function() resume(child_coro) end)
-  if corunning() == nil then
-    run_main_todos() -- Eagerly run now if we're main thread.
-  end
-
+  resume(child_coro)
   return child_addr
 end
 
