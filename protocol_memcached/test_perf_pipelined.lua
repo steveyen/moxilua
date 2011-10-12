@@ -29,10 +29,11 @@ local high_delta = 0
 
 local sender_addr
 local recver_addr
+local run = true
 
 function sender(skt)
   local self = aself()
-  while tot_send < max_send do
+  while tot_send < max_send and run do
     tot_send = tot_send + 5
     ssend(self, skt, "get a\r\nget a\r\nget a\r\nget a\r\nget a\r\n")
     ayield()
@@ -48,10 +49,11 @@ end
 
 function recver(skt)
   local self = aself()
-  while tot_recv < max_send do
+  while tot_recv < max_send and run do
     tot_recv = tot_recv + 1
     local m = srecv(self, skt)
     if m == nil then
+      run = false
       return
     end
     local delta = tot_send - tot_recv
@@ -86,7 +88,7 @@ recver_addr = ambox.spawn(recver, c)
 local d = true
 local i = 0
 
-while tot_recv < max_send do
+while tot_recv < max_send and run do
   acycle(true)
   sstep()
 
@@ -104,7 +106,7 @@ pstats()
 print("tot_recv: ", tot_recv)
 print("tot_send: ", tot_send)
 print("high_delta: ", high_delta)
-print("msgs/sec: ", tot_send / (t_end - t_start))
+print("msgs/sec: ", tot_recv / (t_end - t_start))
 
 print("done")
 
