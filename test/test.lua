@@ -3,12 +3,16 @@ ambox = require('ambox')
 p = print
 
 function a1(a, b, c)
+  assert(a > 0)
+  assert(b > 0)
+  assert(c > 0)
+
   local self_addr = ambox.self_addr()
-  print("a1", self_addr, a, b, c)
+  assert(self_addr)
 
   while true do
     x, y, z = ambox.recv()
-    p("a1 recv'ed ", x, y, z)
+    assert(x > 0 and x == y - 1 and y == z - 1)
   end
 end
 
@@ -21,7 +25,7 @@ ambox.send(a1_addr, 2, 3, 4)
 
 function a2()
   local self_addr = ambox.self_addr()
-  print("a2", self_addr)
+  assert(self_addr)
 
   while true do
     times = ambox.recv()
@@ -30,13 +34,15 @@ function a2()
       ambox.send(self_addr, -1)
     end
 
-    while times > 0 do
+    local j = 0
+    local t = times
+    while t > 0 do
       delta = ambox.recv()
-      p("a2 countdown ", times)
-      times = times + delta
+      assert(delta == -1)
+      t = t + delta
+      j = j + 1
     end
-
-    p("a2 down to zero!")
+    assert(j == times)
   end
 end
 
@@ -46,15 +52,16 @@ ambox.send(a2_addr, 5)
 
 ------------------------------------------
 
-function a3()
+function a3(done_addr)
   local self_addr = ambox.self_addr()
-  print("a3", self_addr)
+  assert(self_addr)
 
   times = ambox.recv()
-  p("a3 times", times)
   ambox.send(a2_addr, times)
 
-  a3(self_addr)
+  if done_addr then
+    ambox.send(done_addr, "a3.done", times)
+  end
 end
 
 a3_addr = ambox.spawn(a3)
@@ -66,12 +73,16 @@ ambox.send(a3_addr, 6)
 
 function a4(name)
   local self_addr = ambox.self_addr()
-  print("a4", self_addr)
+  assert(self_addr)
 
   while true do
     times = ambox.recv()
-    a4_child = ambox.spawn(a3)
+    a4_child = ambox.spawn(a3, self_addr)
     ambox.send(a4_child, times)
+
+    rv_msg, rv_times = ambox.recv()
+    assert(rv_msg == "a3.done")
+    assert(rv_times == times)
   end
 end
 
