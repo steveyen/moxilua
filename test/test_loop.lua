@@ -4,6 +4,6 @@ local function loop(x, max)
   end
 end
 
-m = 2000000
+m = tonumber(arg[1] or "2000000")
 
 loop(0, m)
