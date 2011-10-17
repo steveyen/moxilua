@@ -16,7 +16,7 @@ local RES_ACCEPTED = 21
 
 local SEQ_NUM = 1
 local SEQ_SRC = 2
-local SEQ_KEY = 3
+local SEQ_EXT = 3 -- App-specific extra info like a slot id or storage key.
 
 local acceptor_timeout = opts.acceptor_timeout or 3
 local proposer_timeout = opts.proposer_timeout or 3
@@ -127,7 +127,7 @@ function propose(seq, acceptors, val)
       assert(res and res.req and res.req.seq)
       assert(res.req.seq[SEQ_NUM] == seq[SEQ_NUM])
       assert(res.req.seq[SEQ_SRC] == seq[SEQ_SRC])
-      assert(res.req.seq[SEQ_KEY] == seq[SEQ_KEY])
+      assert(res.req.seq[SEQ_EXT] == seq[SEQ_EXT])
       assert(tally[res.kind])
 
       local vkind = tally[res.kind]
@@ -157,7 +157,7 @@ end
 
 return { accept  = accept,
          propose = propose,
-         makeseq = function(num, src, key) return { num, src, key } end }
+         makeseq = function(num, src, ext) return { num, src, ext } end }
 
 end
 
