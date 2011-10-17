@@ -14,6 +14,10 @@ local RES_PREPARED = 11
 local REQ_ACCEPT   = 20
 local RES_ACCEPTED = 21
 
+local SEQ_NUM = 1
+local SEQ_SRC = 2
+local SEQ_KEY = 3
+
 local acceptor_timeout = opts.acceptor_timeout or 3
 local proposer_timeout = opts.proposer_timeout or 3
 
@@ -26,8 +30,8 @@ function arr_member(arr, item)
   return false
 end
 
-function seq_gte(a, b) -- Returns true if a >= b.
-  a = a or { 0, -1 }   -- A seq is { seq_id, source_id }.
+function seq_gte(a, b) -- Returns true if seq a >= seq b.
+  a = a or { 0, -1 }   -- A seq is { num, src }.
   b = b or { 0, -1 }
   a1 = a[1] or 0
   b1 = b[1] or 0
@@ -50,20 +54,20 @@ function accept(storage, initial_state)
     send(to, me, msg)
   end
 
-  function process(source, req, kind, storage_fun)
+  function process(req, kind, storage_fun)
     if seq_gte(req.seq, proposal_seq) then
       local ok, err = storage_fun(req.seq, req.val)
       if ok then
-        respond(source, kind,
+        respond(req.seq[SEQ_SRC], kind,
                 { req: { kind: req.kind, seq: req.seq } })
         return true
       else
-        respond(source, RES_NACK,
+        respond(req.seq[SEQ_SRC], RES_NACK,
                 { req: req,
                   err: { "storage error", err } })
       end
     else
-      respond(source, RES_NACK,
+      respond(req.seq[SEQ_SRC], RES_NACK,
               { req: req,
                 err: "req seq was behind" })
     end
@@ -79,24 +83,19 @@ function accept(storage, initial_state)
                           accepted_val = accepted_val }
     end
 
-    if req and req.seq then
-      local source = req.seq[2]
-      if source then
-        if req.kind == REQ_PREPARE then
-          if process(source, req, RES_PREPARED, storage.save_seq) then
-            proposal_seq = req.seq
-          end
-        elseif req.kind == REQ_ACCEPT then
-          if process(source, req, RES_ACCEPTED, storage.save_seq_val) then
-            proposal_seq = req.seq
-            accepted_seq = req.seq
-            accepted_val = req.val
-          end
-        else
-          log("paxos.accept", "unknown req.kind", req.kind)
+    if req and req.seq and req.seq[SEQ_SRC] then
+      if req.kind == REQ_PREPARE then
+        if process(req, RES_PREPARED, storage.save_seq) then
+          proposal_seq = req.seq
+        end
+      elseif req.kind == REQ_ACCEPT then
+        if process(req, RES_ACCEPTED, storage.save_seq_val) then
+          proposal_seq = req.seq
+          accepted_seq = req.seq
+          accepted_val = req.val
         end
       else
-        log("paxos.accept", "missing req.seq.source", req.seq)
+        log("paxos.accept", "unknown req.kind", req.kind)
       end
     else
       log("paxos.accept", "bad req")
@@ -104,10 +103,8 @@ function accept(storage, initial_state)
   end
 end
 
-function propose(key, seq, id, acceptors, val)
+function propose(seq, acceptors, val)
   assert(#acceptors > 0)
-  assert(seq >= 0)
-  assert(id >= 0)
 
   function phase(req, yea_vote_kind)
     for i, acceptor_addr in ipairs(acceptors) do
@@ -120,37 +117,38 @@ function propose(key, seq, id, acceptors, val)
     tally[RES_NACK]      = { {}, false, "rejected" }
 
     while true do
-      local source, res = recv(nil, proposer_timeout)
-      if (source == 'die' or
-          source == 'timeout') then
-        return false, source
+      local src, res = recv(nil, proposer_timeout)
+      if (src == 'die' or
+          src == 'timeout') then
+        return false, src
       end
 
-      assert(arr_member(acceptors, source))
+      assert(arr_member(acceptors, src))
       assert(res and res.req and res.req.seq)
-      assert(res.req.seq[1] == seq)
-      assert(res.req.seq[2] == id)
+      assert(res.req.seq[SEQ_NUM] == seq[SEQ_NUM])
+      assert(res.req.seq[SEQ_SRC] == seq[SEQ_SRC])
+      assert(res.req.seq[SEQ_KEY] == seq[SEQ_KEY])
       assert(tally[res.kind])
 
-      local tkind = tally[res.kind]
-      local votes = tkind[1]
-      if not arr_member(votes, source) then
-        votes[#votes] = source
+      local vkind = tally[res.kind]
+      local votes = vkind[1]
+      if not arr_member(votes, src) then
+        votes[#votes] = src
         if #votes >= quorum then
-          return tkind[2], tkind[3]
+          return vkind[2], vkind[3]
         end
       else
-        log("paxos.propose", "repeat vote from source", source, res)
+        log("paxos.propose", "repeat vote from src", src, res)
       end
     end
   end
 
   local ok, err = phase({ kind = REQ_PREPARE,
-                          seq = { seq, id } }, REQ_PREPARED)
+                          seq = seq }, REQ_PREPARED)
   if not ok then return ok, err end
 
   local ok, err = phase({ kind = REQ_ACCEPT,
-                          seq = { seq, id },
+                          seq = seq,
                           val = val }, REQ_ACCEPTED)
   if not ok then return ok, err end
 
@@ -158,7 +156,8 @@ function propose(key, seq, id, acceptors, val)
 end
 
 return { accept  = accept,
-         propose = propose }
+         propose = propose,
+         makeseq = function(num, src, key) return { num, src, key } end }
 
 end
 
