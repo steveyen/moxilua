@@ -16,7 +16,7 @@ local RES_ACCEPTED = 21
 
 local SEQ_NUM = 1
 local SEQ_SRC = 2
-local SEQ_EXT = 3 -- App-specific extra info like a slot id or storage key.
+local SEQ_KEY = 3 -- App-specific key info like a slot id or storage key.
 
 local acceptor_timeout = opts.acceptor_timeout or 3
 local proposer_timeout = opts.proposer_timeout or 3
@@ -50,9 +50,10 @@ end
 function seq_gte(a, b) -- Returns true if seq a >= seq b.
   a = a or { 0, -1 }   -- A seq is { num, src }.
   b = b or { 0, -1 }
-  a1 = a[1] or 0
-  b1 = b[1] or 0
-  return (a1 > b1) or (a1 == b1 and (a[2] or -1) >= (b[2] or -1))
+  a1 = a[SEQ_NUM] or 0
+  b1 = b[SEQ_NUM] or 0
+  return a[SEQ_KEY] == b[SEQ_KEY] and
+         ((a1 > b1) or (a1 == b1 and (a[SEQ_SRC] or -1) >= (b[SEQ_SRC] or -1)))
 end
 
 function accept(storage, initial_state)
@@ -158,7 +159,7 @@ function propose(seq, acceptors, val)
          res and res.req and res.req.seq and
          res.req.seq[SEQ_NUM] == seq[SEQ_NUM] and
          res.req.seq[SEQ_SRC] == seq[SEQ_SRC] and
-         res.req.seq[SEQ_EXT] == seq[SEQ_EXT] and
+         res.req.seq[SEQ_KEY] == seq[SEQ_KEY] and
          tally[res.kind] then
         local vkind = tally[res.kind]
         local votes = vkind[1]
@@ -212,11 +213,12 @@ function stats()
            tot_propose_vote_repeat = tot_propose_vote_repeat }
 end
 
+function makeseq(num, src, key) return { num, src, key } end
+
 return { accept  = accept,
          propose = propose,
-         makeseq = function(num, src, ext) return { num, src, ext } end,
+         makeseq = makeseq,
          stats   = stats }
-
 end
 
 return paxos_module()
