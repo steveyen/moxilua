@@ -21,6 +21,23 @@ local SEQ_EXT = 3 -- App-specific extra info like a slot id or storage key.
 local acceptor_timeout = opts.acceptor_timeout or 3
 local proposer_timeout = opts.proposer_timeout or 3
 
+local tot_accept_loop         = 0
+local tot_accept_bad_req      = 0
+local tot_accept_bad_req_kind = 0
+local tot_accept_prepare      = 0
+local tot_accept_prepared     = 0
+local tot_accept_accept       = 0
+local tot_accept_accepted     = 0
+local tot_accept_nack_storage = 0
+local tot_accept_nack_behind  = 0
+local tot_propose_phase       = 0
+local tot_propose_phase_loop  = 0
+local tot_propose_send        = 0
+local tot_propose_recv        = 0
+local tot_propose_recv_err    = 0
+local tot_propose_vote        = 0
+local tot_propose_vote_repeat = 0
+
 function arr_member(arr, item)
   for i = 1, #arr do
     if arr[i] == item then
@@ -62,11 +79,13 @@ function accept(storage, initial_state)
                 { req = { kind = req.kind, seq = req.seq } })
         return true
       else
+        tot_accept_nack_storage = tot_accept_nack_storage + 1
         respond(req.seq[SEQ_SRC], RES_NACK,
                 { req = req,
                   err = { "storage error", err } })
       end
     else
+      tot_accept_nack_behind = tot_accept_nack_behind + 1
       respond(req.seq[SEQ_SRC], RES_NACK,
               { req = req,
                 err = "req seq was behind" })
@@ -85,21 +104,29 @@ function accept(storage, initial_state)
 
     if req and req.seq and req.seq[SEQ_SRC] then
       if req.kind == REQ_PREPARE then
+        tot_accept_prepare = tot_accept_prepare + 1
         if process(req, RES_PREPARED, storage.save_seq) then
+          tot_accept_prepared = tot_accept_prepared + 1
           proposal_seq = req.seq
         end
       elseif req.kind == REQ_ACCEPT then
+        tot_accept_accept = tot_accept_accept + 1
         if process(req, RES_ACCEPTED, storage.save_seq_val) then
+          tot_accept_accepted = tot_accept_accepted + 1
           proposal_seq = req.seq
           accepted_seq = req.seq
           accepted_val = req.val
         end
       else
+        tot_accept_bad_req_kind = tot_accept_bad_req_kind + 1
         log("paxos.accept", "unknown req.kind", req.kind)
       end
     else
+      tot_accept_bad_req = tot_accept_bad_req + 1
       log("paxos.accept", "bad req")
     end
+
+    tot_accept_loop = tot_accept_loop + 1
   end
 end
 
@@ -107,7 +134,10 @@ function propose(seq, acceptors, val)
   assert(#acceptors > 0)
 
   function phase(req, yea_vote_kind)
+    tot_propose_phase = tot_propose_phase + 1
+
     for i, acceptor_addr in ipairs(acceptors) do
+      tot_propose_send = tot_propose_send + 1
       send(acceptor_addr, req)
     end
 
@@ -118,28 +148,36 @@ function propose(seq, acceptors, val)
 
     while true do
       local src, res = recv(nil, proposer_timeout)
+      tot_propose_recv = tot_propose_recv + 1
       if (src == 'die' or
           src == 'timeout') then
         return false, src
       end
 
-      assert(arr_member(acceptors, src))
-      assert(res and res.req and res.req.seq)
-      assert(res.req.seq[SEQ_NUM] == seq[SEQ_NUM])
-      assert(res.req.seq[SEQ_SRC] == seq[SEQ_SRC])
-      assert(res.req.seq[SEQ_EXT] == seq[SEQ_EXT])
-      assert(tally[res.kind])
-
-      local vkind = tally[res.kind]
-      local votes = vkind[1]
-      if not arr_member(votes, src) then
-        votes[#votes] = src
-        if #votes >= quorum then
-          return vkind[2], vkind[3]
+      if arr_member(acceptors, src) and
+         res and res.req and res.req.seq and
+         res.req.seq[SEQ_NUM] == seq[SEQ_NUM] and
+         res.req.seq[SEQ_SRC] == seq[SEQ_SRC] and
+         res.req.seq[SEQ_EXT] == seq[SEQ_EXT] and
+         tally[res.kind] then
+        local vkind = tally[res.kind]
+        local votes = vkind[1]
+        if not arr_member(votes, src) then
+          tot_propose_vote = tot_propose_vote + 1
+          votes[#votes] = src
+          if #votes >= quorum then
+            return vkind[2], vkind[3]
+          end
+        else
+          tot_propose_vote_repeat = tot_propose_vote_repeat + 1
+          log("paxos.propose", "repeat vote from src", src, res)
         end
       else
-        log("paxos.propose", "repeat vote from src", src, res)
+        tot_propose_recv_err = tot_propose_recv_err + 1
+        log("paxos.propose", "bad msg from src", src, res)
       end
+
+      tot_propose_phase_loop = tot_propose_phase_loop + 1
     end
   end
 
@@ -155,9 +193,29 @@ function propose(seq, acceptors, val)
   return true
 end
 
+function stats()
+  return { tot_accept_loop         = tot_accept_loop,
+           tot_accept_bad_req      = tot_accept_bad_req,
+           tot_accept_bad_req_kind = tot_accept_bad_req_kind,
+           tot_accept_prepare      = tot_accept_prepare,
+           tot_accept_prepared     = tot_accept_prepared,
+           tot_accept_accept       = tot_accept_accept,
+           tot_accept_accepted     = tot_accept_accepted,
+           tot_accept_nack_storage = tot_accept_nack_storage,
+           tot_accept_nack_behind  = tot_accept_nack_behind,
+           tot_propose_phase       = tot_propose_phase,
+           tot_propose_phase_loop  = tot_propose_phase_loop,
+           tot_propose_send        = tot_propose_send,
+           tot_propose_recv        = tot_propose_recv,
+           tot_propose_recv_err    = tot_propose_recv_err,
+           tot_propose_vote        = tot_propose_vote,
+           tot_propose_vote_repeat = tot_propose_vote_repeat }
+end
+
 return { accept  = accept,
          propose = propose,
-         makeseq = function(num, src, ext) return { num, src, ext } end }
+         makeseq = function(num, src, ext) return { num, src, ext } end,
+         stats   = stats }
 
 end
 
