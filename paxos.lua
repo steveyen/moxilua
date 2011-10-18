@@ -59,17 +59,17 @@ function accept(storage, initial_state)
       local ok, err = storage_fun(req.seq, req.val)
       if ok then
         respond(req.seq[SEQ_SRC], kind,
-                { req: { kind: req.kind, seq: req.seq } })
+                { req = { kind = req.kind, seq = req.seq } })
         return true
       else
         respond(req.seq[SEQ_SRC], RES_NACK,
-                { req: req,
-                  err: { "storage error", err } })
+                { req = req,
+                  err = { "storage error", err } })
       end
     else
       respond(req.seq[SEQ_SRC], RES_NACK,
-              { req: req,
-                err: "req seq was behind" })
+              { req = req,
+                err = "req seq was behind" })
     end
     return false
   end
