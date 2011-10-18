@@ -1,10 +1,11 @@
 # multi-threading.
 
-Possible design: each worker thread should have its own work queue,
-and can be notified via pipe or socket events by sending threads that
-there's work available.
+Possible design: each worker thread should have its own work queue.
 
-Keep the # of worker threads static.
+Notify worker thread via pipe or socket events that there's work
+available.
+
+Keep the # of worker threads static?
 
 Threads should only pass serialized, full-copy buffers to each other,
 where the receiving thread takes on buffer memory ownership.
@@ -16,6 +17,8 @@ be watching and learn about cross-thread actor death?
 Interesting issues - luajit is not multi-thread ready?
 
 lua lanes does not seem with work with luajit.
+
+stealing work from another thread's queue?
 
 # can we use zeromq?
 
@@ -43,7 +46,7 @@ Need to use external storage (light/heavy userdata).
 
 A really busy actor can starve other actors?
 
-Needs to politely yield() every once in awhile, but perhaps
+Need to politely yield() every once in awhile, but perhaps
 something can be done impolitely?
 
 # kill actors api.
