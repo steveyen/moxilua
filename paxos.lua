@@ -228,6 +228,9 @@ return { accept  = accept,
          propose = propose,
          seq_mk  = seq_mk,
          seq_gte = seq_gte,
+         SEQ_NUM = SEQ_NUM,
+         SEQ_SRC = SEQ_SRC,
+         SEQ_KEY = SEQ_KEY,
          stats   = stats }
 end
 
