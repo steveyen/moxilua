@@ -3,7 +3,10 @@ function paxos_module(ambox, opts)
 ambox = ambox or require('ambox')
 opts  = opts  or {}
 
-local self_addr = ambox.self_addr
+local tinsert = table.insert
+local mfloor = math.floor
+
+local self = ambox.self_addr
 local send = ambox.send
 local recv = ambox.recv
 local log = opts.log or print
@@ -24,6 +27,8 @@ local proposer_timeout = opts.proposer_timeout or 3
 local tot_accept_loop         = 0
 local tot_accept_bad_req      = 0
 local tot_accept_bad_req_kind = 0
+local tot_accept_recv         = 0
+local tot_accept_send         = 0
 local tot_accept_prepare      = 0
 local tot_accept_prepared     = 0
 local tot_accept_accept       = 0
@@ -59,7 +64,7 @@ end
 function accept(storage, initial_state)
   initial_state = initial_state or {}
 
-  local me           = initial_state.id or self_addr()
+  local me           = initial_state.id or self()
   local accepted_seq = initial_state.accepted_seq
   local accepted_val = initial_state.accepted_val
   local proposal_seq = accepted_seq
@@ -70,6 +75,7 @@ function accept(storage, initial_state)
     msg.accepted_seq = accepted_seq
     msg.accepted_val = accepted_val
     send(to, me, msg)
+    tot_accept_send = tot_accept_send + 1
   end
 
   function process(req, kind, storage_fun)
@@ -96,6 +102,7 @@ function accept(storage, initial_state)
 
   while true do
     local req = recv(nil, acceptor_timeout)
+    tot_accept_recv = tot_accept_recv + 1
     if (req == 'die' or
         req == 'timeout') then
       return true, req, { id = me,
@@ -142,7 +149,7 @@ function propose(seq, acceptors, val)
       send(acceptor_addr, req)
     end
 
-    local quorum = math.floor(#acceptors / 2) + 1
+    local quorum = mfloor(#acceptors / 2) + 1
     local tally = {}
     tally[yea_vote_kind] = { {}, true, nil }
     tally[RES_NACK]      = { {}, false, "rejected" }
@@ -165,7 +172,7 @@ function propose(seq, acceptors, val)
         local votes = vkind[1]
         if not arr_member(votes, src) then
           tot_propose_vote = tot_propose_vote + 1
-          votes[#votes] = src
+          tinsert(votes, src)
           if #votes >= quorum then
             return vkind[2], vkind[3]
           end
@@ -183,12 +190,12 @@ function propose(seq, acceptors, val)
   end
 
   local ok, err = phase({ kind = REQ_PREPARE,
-                          seq = seq }, REQ_PREPARED)
+                          seq = seq }, RES_PREPARED)
   if not ok then return ok, err end
 
   local ok, err = phase({ kind = REQ_ACCEPT,
                           seq = seq,
-                          val = val }, REQ_ACCEPTED)
+                          val = val }, RES_ACCEPTED)
   if not ok then return ok, err end
 
   return true
@@ -198,6 +205,8 @@ function stats()
   return { tot_accept_loop         = tot_accept_loop,
            tot_accept_bad_req      = tot_accept_bad_req,
            tot_accept_bad_req_kind = tot_accept_bad_req_kind,
+           tot_accept_recv         = tot_accept_recv,
+           tot_accept_send         = tot_accept_send,
            tot_accept_prepare      = tot_accept_prepare,
            tot_accept_prepared     = tot_accept_prepared,
            tot_accept_accept       = tot_accept_accept,
@@ -213,11 +222,12 @@ function stats()
            tot_propose_vote_repeat = tot_propose_vote_repeat }
 end
 
-function makeseq(num, src, key) return { num, src, key } end
+function seq_mk(num, src, key) return { num, src, key } end
 
 return { accept  = accept,
          propose = propose,
-         makeseq = makeseq,
+         seq_mk  = seq_mk,
+         seq_gte = seq_gte,
          stats   = stats }
 end
 
