@@ -318,6 +318,6 @@ assert(p.stats().tot_propose_recv_err == 0)
 
 ----------------------------------------------
 
-print("OK")
+print("DONE")
 
 
