@@ -273,6 +273,49 @@ assert(p.stats().tot_propose_recv_err == 0)
 
 ----------------------------------------------
 
+print("test - storage save_seq_val error")
+done = 0
+p = paxos_module()
+q = nil
+s = mock_storage("storage", true)
+s.return_val_save_seq_val = false
+a = spawn(function()
+            ok, err, state = p.accept(s)
+            -- tdump("accept-done", p.stats())
+            -- s.dump()
+            assert(ok)
+            assert(err == 'timeout')
+            assert(state)
+            assert(state.id == a)
+            assert(state.accepted_seq == nil)
+            assert(state.accepted_val == nil)
+            done = done + 1
+          end)
+m = spawn(function()
+            q = p.seq_mk(1, ambox.self_addr())
+            ok, err = p.propose(q, { a }, 'x')
+            -- tdump("propose-done", p.stats())
+            assert(not ok)
+            done = done + 1
+          end)
+repeat
+  ambox.cycle()
+until done == 2
+assert(#s.history == 2)
+assert(s.history[1][1] == 'save_seq')
+assert(seq_eq(p, q, s.history[1][2]))
+assert(s.history[2][1] == 'save_seq_val')
+assert(seq_eq(p, q, s.history[2][2]))
+assert(p.stats().tot_accept_accept == 1)
+assert(p.stats().tot_accept_accepted == 0)
+assert(p.stats().tot_accept_prepare == 1)
+assert(p.stats().tot_accept_prepared == 1)
+assert(p.stats().tot_accept_nack_storage == 1)
+assert(p.stats().tot_propose_vote_repeat == 0)
+assert(p.stats().tot_propose_recv_err == 0)
+
+----------------------------------------------
+
 print("OK")
 
 
