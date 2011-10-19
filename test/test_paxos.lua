@@ -62,7 +62,7 @@ end
 
 print("test - accept recv timeout")
 done = false
-p = paxos_module()
+p = paxos_module(nil, { acceptor_timeout = 1, proposer_timeout = 1 })
 s = mock_storage()
 a = spawn(function()
             ok, err, state = p.accept(s)
@@ -83,7 +83,7 @@ assert(p.stats().tot_accept_loop == 0)
 
 print("test - propose 1 value")
 done = 0
-p = paxos_module()
+p = paxos_module(nil, { acceptor_timeout = 1, proposer_timeout = 1 })
 q = nil
 s = mock_storage("storage", true)
 a = spawn(function()
@@ -126,7 +126,7 @@ assert(p.stats().tot_propose_recv_err == 0)
 
 print("test - propose 2 values")
 done = 0
-p = paxos_module()
+p = paxos_module(nil, { acceptor_timeout = 1, proposer_timeout = 1 })
 q1 = nil
 q2 = nil
 s = mock_storage("storage", true)
@@ -182,7 +182,7 @@ assert(p.stats().tot_propose_recv_err == 0)
 
 print("test - propose 2 values, one wins")
 done = 0
-p = paxos_module()
+p = paxos_module(nil, { acceptor_timeout = 1, proposer_timeout = 1 })
 q1 = nil
 q2 = nil
 s = mock_storage("storage", true)
@@ -234,7 +234,7 @@ assert(p.stats().tot_propose_recv_err == 0)
 
 print("test - storage save_seq error")
 done = 0
-p = paxos_module()
+p = paxos_module(nil, { acceptor_timeout = 1, proposer_timeout = 1 })
 q = nil
 s = mock_storage("storage", true)
 s.return_val_save_seq = false
@@ -275,7 +275,7 @@ assert(p.stats().tot_propose_recv_err == 0)
 
 print("test - storage save_seq_val error")
 done = 0
-p = paxos_module()
+p = paxos_module(nil, { acceptor_timeout = 1, proposer_timeout = 1 })
 q = nil
 s = mock_storage("storage", true)
 s.return_val_save_seq_val = false
