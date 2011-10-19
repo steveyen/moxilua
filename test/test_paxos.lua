@@ -24,12 +24,14 @@ function tdump(prefix, t)
   for i = 1, #keys do print(prefix, keys[i], t[keys[i]]) end
 end
 
-function seq_eq(p, a, b)
-  return p.seq_gte(a, b) and p.seq_gte(b, e)
+function seq_eq(a, b)
+  return paxos.seq_gte(a, b) and paxos.seq_gte(b, e)
 end
 
 function seq_s(seq)
-  return tostring(seq[1]) .. ":" .. tostring(seq[2]) .. ":" .. tostring(seq[3])
+  return tostring(seq[paxos.SEQ_NUM]) .. ":" ..
+         tostring(seq[paxos.SEQ_SRC]) .. ":" ..
+         tostring(seq[paxos.SEQ_KEY])
 end
 
 function mock_storage(id, verbose)
@@ -95,7 +97,7 @@ a = spawn(function()
             assert(state)
             assert(state.id == a)
             assert(state.accepted_seq)
-            assert(seq_eq(p, state.accepted_seq, q))
+            assert(seq_eq(state.accepted_seq, q))
             assert(state.accepted_val == 'x')
             done = done + 1
           end)
@@ -111,9 +113,9 @@ repeat
 until done == 2
 assert(#s.history == 2)
 assert(s.history[1][1] == 'save_seq')
-assert(seq_eq(p, q, s.history[1][2]))
+assert(seq_eq(q, s.history[1][2]))
 assert(s.history[2][1] == 'save_seq_val')
-assert(seq_eq(p, q, s.history[2][2]))
+assert(seq_eq(q, s.history[2][2]))
 assert(s.history[2][3] == 'x')
 assert(p.stats().tot_accept_accept == 1)
 assert(p.stats().tot_accept_accepted == 1)
@@ -139,7 +141,7 @@ a = spawn(function()
             assert(state)
             assert(state.id == a)
             assert(state.accepted_seq)
-            assert(seq_eq(p, state.accepted_seq, q2))
+            assert(seq_eq(state.accepted_seq, q2))
             assert(state.accepted_val == 'y')
             done = done + 1
           end)
@@ -162,14 +164,14 @@ repeat
 until done == 3
 assert(#s.history == 4)
 assert(s.history[1][1] == 'save_seq')
-assert(seq_eq(p, q1, s.history[1][2]))
+assert(seq_eq(q1, s.history[1][2]))
 assert(s.history[2][1] == 'save_seq_val')
-assert(seq_eq(p, q1, s.history[2][2]))
+assert(seq_eq(q1, s.history[2][2]))
 assert(s.history[2][3] == 'x')
 assert(s.history[3][1] == 'save_seq')
-assert(seq_eq(p, q2, s.history[3][2]))
+assert(seq_eq(q2, s.history[3][2]))
 assert(s.history[4][1] == 'save_seq_val')
-assert(seq_eq(p, q2, s.history[4][2]))
+assert(seq_eq(q2, s.history[4][2]))
 assert(s.history[4][3] == 'y')
 assert(p.stats().tot_accept_accept == 2)
 assert(p.stats().tot_accept_accepted == 2)
@@ -195,7 +197,7 @@ a = spawn(function()
             assert(state)
             assert(state.id == a)
             assert(state.accepted_seq)
-            assert(seq_eq(p, state.accepted_seq, q1))
+            assert(seq_eq(state.accepted_seq, q1))
             assert(state.accepted_val == 'x')
             done = done + 1
           end)
@@ -218,9 +220,9 @@ repeat
 until done == 3
 assert(#s.history == 2)
 assert(s.history[1][1] == 'save_seq')
-assert(seq_eq(p, q1, s.history[1][2]))
+assert(seq_eq(q1, s.history[1][2]))
 assert(s.history[2][1] == 'save_seq_val')
-assert(seq_eq(p, q1, s.history[2][2]))
+assert(seq_eq(q1, s.history[2][2]))
 assert(s.history[2][3] == 'x')
 assert(p.stats().tot_accept_accept == 1)
 assert(p.stats().tot_accept_accepted == 1)
@@ -262,7 +264,7 @@ repeat
 until done == 2
 assert(#s.history == 1)
 assert(s.history[1][1] == 'save_seq')
-assert(seq_eq(p, q, s.history[1][2]))
+assert(seq_eq(q, s.history[1][2]))
 assert(p.stats().tot_accept_accept == 0)
 assert(p.stats().tot_accept_accepted == 0)
 assert(p.stats().tot_accept_prepare == 1)
@@ -303,9 +305,9 @@ repeat
 until done == 2
 assert(#s.history == 2)
 assert(s.history[1][1] == 'save_seq')
-assert(seq_eq(p, q, s.history[1][2]))
+assert(seq_eq(q, s.history[1][2]))
 assert(s.history[2][1] == 'save_seq_val')
-assert(seq_eq(p, q, s.history[2][2]))
+assert(seq_eq(q, s.history[2][2]))
 assert(p.stats().tot_accept_accept == 1)
 assert(p.stats().tot_accept_accepted == 0)
 assert(p.stats().tot_accept_prepare == 1)
