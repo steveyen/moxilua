@@ -151,8 +151,8 @@ function propose(seq, acceptors, val)
 
     local quorum = mfloor(#acceptors / 2) + 1
     local tally = {}
-    tally[yea_vote_kind] = { {}, true, nil }
-    tally[RES_NACK]      = { {}, false, "rejected" }
+    tally[yea_vote_kind] = { {}, quorum, true, nil }
+    tally[RES_NACK]      = { {}, #acceptors - quorum + 1, false, "rejected" }
 
     while true do
       local src, res = recv(nil, proposer_timeout)
@@ -173,8 +173,8 @@ function propose(seq, acceptors, val)
         if not arr_member(votes, src) then
           tot_propose_vote = tot_propose_vote + 1
           tinsert(votes, src)
-          if #votes >= quorum then
-            return vkind[2], vkind[3]
+          if #votes >= vkind[2] then
+            return vkind[3], vkind[4]
           end
         else
           tot_propose_vote_repeat = tot_propose_vote_repeat + 1
