@@ -64,7 +64,6 @@ end
 function accept(storage, initial_state)
   initial_state = initial_state or {}
 
-  local me           = initial_state.id or self()
   local accepted_seq = initial_state.accepted_seq
   local accepted_val = initial_state.accepted_val
   local proposal_seq = accepted_seq
@@ -74,7 +73,7 @@ function accept(storage, initial_state)
     msg.kind = kind
     msg.accepted_seq = accepted_seq
     msg.accepted_val = accepted_val
-    send(to, me, msg)
+    send(to, self(), msg)
     tot_accept_send = tot_accept_send + 1
   end
 
@@ -105,8 +104,7 @@ function accept(storage, initial_state)
     tot_accept_recv = tot_accept_recv + 1
     if (req == 'die' or
         req == 'timeout') then
-      return true, req, { id = me,
-                          accepted_seq = accepted_seq,
+      return true, req, { accepted_seq = accepted_seq,
                           accepted_val = accepted_val }
     end
 
