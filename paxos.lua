@@ -81,22 +81,15 @@ function accept(storage, initial_state)
     if seq_gte(req.seq, proposal_seq) then
       local ok, err = storage_fun(req.seq, req.val)
       if ok then
-        respond(req.seq[SEQ_SRC], kind,
-                { req = { kind = req.kind, seq = req.seq } })
-        return true
-      else
-        tot_accept_nack_storage = tot_accept_nack_storage + 1
-        respond(req.seq[SEQ_SRC], RES_NACK,
-                { req = req,
-                  err = { "storage error", err } })
+        return true, kind, { req = { kind = req.kind, seq = req.seq } }
       end
-    else
-      tot_accept_nack_behind = tot_accept_nack_behind + 1
-      respond(req.seq[SEQ_SRC], RES_NACK,
-              { req = req,
-                err = "req seq was behind" })
+      tot_accept_nack_storage = tot_accept_nack_storage + 1
+      return false, RES_NACK, { req = req,
+                                err = { "storage error", err } }
     end
-    return false
+    tot_accept_nack_behind = tot_accept_nack_behind + 1
+    return false, RES_NACK, { req = req,
+                              err = "req seq was behind" }
   end
 
   while true do
@@ -111,18 +104,22 @@ function accept(storage, initial_state)
     if req and req.seq and req.seq[SEQ_SRC] then
       if req.kind == REQ_PREPARE then
         tot_accept_prepare = tot_accept_prepare + 1
-        if process(req, RES_PREPARED, storage.save_seq) then
+        ok, res_kind, res = process(req, RES_PREPARED, storage.save_seq)
+        if ok then
           tot_accept_prepared = tot_accept_prepared + 1
           proposal_seq = req.seq
         end
+        respond(req.seq[SEQ_SRC], res_kind, res)
       elseif req.kind == REQ_ACCEPT then
         tot_accept_accept = tot_accept_accept + 1
-        if process(req, RES_ACCEPTED, storage.save_seq_val) then
+        ok, res_kind, res = process(req, RES_ACCEPTED, storage.save_seq_val)
+        if ok then
           tot_accept_accepted = tot_accept_accepted + 1
           proposal_seq = req.seq
           accepted_seq = req.seq
           accepted_val = req.val
         end
+        respond(req.seq[SEQ_SRC], res_kind, res)
       else
         tot_accept_bad_req_kind = tot_accept_bad_req_kind + 1
         log("paxos.accept", "unknown req.kind", req.kind)
@@ -172,7 +169,8 @@ function propose(seq, acceptors, val)
           tot_propose_vote = tot_propose_vote + 1
           tinsert(votes, src)
           if #votes >= vkind[2] then
-            return vkind[3], vkind[4]
+            return vkind[3], vkind[4], { seq = res.accepted_seq,
+                                         val = res.accepted_val }
           end
         else
           tot_propose_vote_repeat = tot_propose_vote_repeat + 1
@@ -187,16 +185,16 @@ function propose(seq, acceptors, val)
     end
   end
 
-  local ok, err = phase({ kind = REQ_PREPARE,
-                          seq = seq }, RES_PREPARED)
-  if not ok then return ok, err end
+  local ok, err, res = phase({ kind = REQ_PREPARE,
+                               seq = seq }, RES_PREPARED)
+  if not ok then return ok, err, res end
 
-  local ok, err = phase({ kind = REQ_ACCEPT,
-                          seq = seq,
-                          val = val }, RES_ACCEPTED)
-  if not ok then return ok, err end
+  local ok, err, res = phase({ kind = REQ_ACCEPT,
+                               seq = seq,
+                               val = val }, RES_ACCEPTED)
+  if not ok then return ok, err, res end
 
-  return true
+  return true, nil, res
 end
 
 function stats()
