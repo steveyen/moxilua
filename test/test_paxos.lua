@@ -182,7 +182,7 @@ assert(p.stats().tot_propose_recv_err == 0)
 
 ----------------------------------------------
 
-print("test - propose 2 values, one wins")
+print("test - propose 2 values, 2nd rejected")
 done = 0
 p = paxos_module(nil, { acceptor_timeout = 1, proposer_timeout = 1 })
 q1 = nil
@@ -228,6 +228,70 @@ assert(p.stats().tot_accept_accept == 1)
 assert(p.stats().tot_accept_accepted == 1)
 assert(p.stats().tot_accept_prepare == 2)
 assert(p.stats().tot_accept_prepared == 1)
+assert(p.stats().tot_accept_nack_behind == 1)
+assert(p.stats().tot_propose_vote_repeat == 0)
+assert(p.stats().tot_propose_recv_err == 0)
+
+----------------------------------------------
+
+print("test - propose 2 values, 2nd rejected, 3rd wins")
+done = 0
+p = paxos_module(nil, { acceptor_timeout = 1, proposer_timeout = 1 })
+q1 = nil
+q2 = nil
+s = mock_storage("storage", true)
+a = spawn(function()
+            ok, err, state = p.accept(s)
+            -- tdump("accept-done", p.stats())
+            -- s.dump()
+            assert(ok)
+            assert(err == 'timeout')
+            assert(state)
+            assert(state.id == a)
+            assert(state.accepted_seq)
+            assert(seq_eq(state.accepted_seq, q3))
+            assert(state.accepted_val == 'z')
+            done = done + 1
+          end)
+spawn(function()
+        q1 = p.seq_mk(2, ambox.self_addr())
+        ok, err = p.propose(q1, { a }, 'x')
+        -- tdump("propose-done", p.stats())
+        assert(ok and not err)
+        done = done + 1
+        spawn(function()
+                q2 = p.seq_mk(1, ambox.self_addr())
+                ok, err = p.propose(q2, { a }, 'y')
+                -- tdump("propose-done", p.stats())
+                assert(not ok and err == "rejected")
+                done = done + 1
+                spawn(function()
+                        q3 = p.seq_mk(3, ambox.self_addr())
+                        ok, err = p.propose(q3, { a }, 'z')
+                        -- tdump("propose-done", p.stats())
+                        assert(ok and not err)
+                        done = done + 1
+                      end)
+              end)
+      end)
+repeat
+  ambox.cycle()
+until done == 4
+assert(#s.history == 4)
+assert(s.history[1][1] == 'save_seq')
+assert(seq_eq(q1, s.history[1][2]))
+assert(s.history[2][1] == 'save_seq_val')
+assert(seq_eq(q1, s.history[2][2]))
+assert(s.history[2][3] == 'x')
+assert(s.history[3][1] == 'save_seq')
+assert(seq_eq(q3, s.history[3][2]))
+assert(s.history[4][1] == 'save_seq_val')
+assert(seq_eq(q3, s.history[4][2]))
+assert(s.history[4][3] == 'z')
+assert(p.stats().tot_accept_accept == 2)
+assert(p.stats().tot_accept_accepted == 2)
+assert(p.stats().tot_accept_prepare == 3)
+assert(p.stats().tot_accept_prepared == 2)
 assert(p.stats().tot_accept_nack_behind == 1)
 assert(p.stats().tot_propose_vote_repeat == 0)
 assert(p.stats().tot_propose_recv_err == 0)
