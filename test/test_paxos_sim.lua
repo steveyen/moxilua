@@ -82,6 +82,7 @@ function sim_one(nleaders, nacceptors, picker, debug)
     debug("accept", i, a)
   end
 
+  local nlearned = 0
   local learned = {}
   local leaders = {}
   for i = 1, nleaders do
@@ -91,6 +92,7 @@ function sim_one(nleaders, nacceptors, picker, debug)
                       debug("leader...", i, ok, err, res and res.val)
                       if ok then
                         learned[i] = res
+                        nlearned = nlearned + 1
                       end
                     end, i)
     leaders[i] = m
@@ -106,13 +108,17 @@ function sim_one(nleaders, nacceptors, picker, debug)
   until msg == nil
 
   -- Everyone should have reached consensus.
-  for i = 1, #learned do
-    assert(learned[i])
-    assert(learned[i].seq == learned[1].seq)
-    assert(learned[i].val == learned[1].val)
+  local first = nil
+  for i, res in ipairs(learned) do
+    if first then
+      assert(first.seq == res.seq)
+      assert(first.val == res.val)
+    else
+      first = res
+    end
   end
 
-  return #learned
+  return nlearned
 end
 
 function fifo_picker(msgs)
@@ -129,3 +135,14 @@ assert(debug(sim_one(1, 3, fifo_picker, debug_off)) == 1)
 assert(debug(sim_one(1, 4, fifo_picker, debug_off)) == 1)
 assert(debug(sim_one(1, 5, fifo_picker, debug_off)) == 1)
 
+assert(debug(sim_one(2, 1, fifo_picker, debug_off)) == 1)
+assert(debug(sim_one(2, 2, fifo_picker, debug_off)) == 1)
+assert(debug(sim_one(2, 3, fifo_picker, debug_off)) == 1)
+assert(debug(sim_one(2, 4, fifo_picker, debug_off)) == 1)
+assert(debug(sim_one(2, 5, fifo_picker, debug_off)) == 1)
+
+assert(debug(sim_one(3, 1, fifo_picker, debug_off)) == 1)
+assert(debug(sim_one(3, 2, fifo_picker, debug_off)) == 1)
+assert(debug(sim_one(3, 3, fifo_picker, debug_off)) == 1)
+assert(debug(sim_one(3, 4, fifo_picker, debug_off)) == 1)
+assert(debug(sim_one(3, 5, fifo_picker, debug_off)) == 1)
