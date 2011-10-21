@@ -58,8 +58,8 @@ end
 -- picker()'s decision.
 --
 function sim_one(nleaders, nacceptors, picker, debug)
-  print("---------------------")
-  print("sim_one", nleaders, nacceptors)
+  debug("---------------------")
+  debug("sim_one", nleaders, nacceptors)
 
   local msgs = {}
 
@@ -72,7 +72,7 @@ function sim_one(nleaders, nacceptors, picker, debug)
            end
   }
 
-  local p = paxos_module(mock_ambox)
+  local p = paxos_module(mock_ambox, { log = debug })
 
   local storages = {}
   local acceptors = {}
@@ -121,6 +121,14 @@ function sim_one(nleaders, nacceptors, picker, debug)
       first = res
     end
   end
+
+  for i = 1, #acceptors do
+    ambox.send(acceptors[i], "die")
+  end
+  for i = 1, #leaders do
+    ambox.send(leaders[i], "die")
+  end
+  ambox.cycle()
 
   return nlearned
 end
@@ -173,3 +181,40 @@ assert(debug(sim_one(3, 3, lifo_picker, debug_off)) >= 1)
 assert(debug(sim_one(3, 4, lifo_picker, debug_off)) >= 1)
 assert(debug(sim_one(3, 5, lifo_picker, debug_off)) >= 1)
 
+function random_picker(msgs)
+  if #msgs <= 0 then return nil end
+  local i = math.random(#msgs)
+  local m = msgs[i]
+  table.remove(msgs, i)
+  return m
+end
+
+math.randomseed(1)
+
+assert(debug_off(sim_one(1, 1, random_picker, debug_off)) >= 1)
+assert(debug_off(sim_one(1, 2, random_picker, debug_off)) >= 1)
+assert(debug_off(sim_one(1, 3, random_picker, debug_off)) >= 1)
+assert(debug_off(sim_one(1, 4, random_picker, debug_off)) >= 1)
+assert(debug_off(sim_one(1, 5, random_picker, debug_off)) >= 1)
+
+assert(debug_off(sim_one(2, 1, random_picker, debug_off)) >= 1)
+assert(debug_off(sim_one(2, 2, random_picker, debug_off)) >= 1)
+assert(debug_off(sim_one(2, 3, random_picker, debug_off)) >= 1)
+assert(debug_off(sim_one(2, 4, random_picker, debug_off)) >= 1)
+assert(debug_off(sim_one(2, 5, random_picker, debug_off)) >= 1)
+
+assert(debug_off(sim_one(3, 1, random_picker, debug_off)) >= 1)
+assert(debug_off(sim_one(3, 2, random_picker, debug_off)) >= 1)
+assert(debug_off(sim_one(3, 3, random_picker, debug_off)) >= 1)
+assert(debug_off(sim_one(3, 4, random_picker, debug_off)) >= 1)
+assert(debug_off(sim_one(3, 5, random_picker, debug_off)) >= 1)
+
+math.randomseed(1)
+
+for attempts = 1, 1000000 do
+  if attempts % 1000 == 0 then
+    print("==========================", attempts)
+  end
+
+  sim_one(3, 5, random_picker, debug_off)
+end
