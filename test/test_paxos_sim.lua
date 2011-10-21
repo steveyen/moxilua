@@ -2,6 +2,15 @@ ambox = require('ambox')
 spawn = ambox.spawn
 paxos = require('paxos')
 
+function debug(...)
+  print(...)
+  return ...
+end
+
+function debug_off(...)
+  return ...
+end
+
 function tdump(prefix, t)
   keys = {}
   for k, v in pairs(t) do table.insert(keys, k) end
@@ -19,39 +28,30 @@ function seq_s(seq)
          tostring(seq[paxos.SEQ_KEY])
 end
 
-function mock_storage(id, verbose)
+function mock_storage(id, debug)
   local rv = {
     return_val_save_seq = true,
     return_val_save_seq_val = true,
     history = {}
   }
   rv.save_seq = function(seq)
-                  if verbose then print(id, "save_seq", seq_s(seq)) end
+                  debug(id, "save_seq", seq_s(seq))
                   table.insert(rv.history, { "save_seq", seq })
                   return rv.return_val_save_seq
                 end
   rv.save_seq_val = function(seq, val)
-                      if verbose then print(id, "save_seq_val", seq_s(seq), val) end
+                      debug(id, "save_seq_val", seq_s(seq), val)
                       table.insert(rv.history, { "save_seq_val", seq, val })
                       return rv.return_val_save_seq_val
                     end
   rv.dump = function()
-              print("history", id)
-              for i = 1, #rv.history do print("history", id, i,
+              debug("history", id)
+              for i = 1, #rv.history do debug("history", id, i,
                                               rv.history[i][1],
                                               seq_s(rv.history[i][2]),
                                               rv.history[i][3]) end
             end
   return rv
-end
-
-function debug(...)
-  print(...)
-  return ...
-end
-
-function debug_off(...)
-  return ...
 end
 
 -- Simulate one round of paxos, sending messages based on the
@@ -77,7 +77,7 @@ function sim_one(nleaders, nacceptors, picker, debug)
   local storages = {}
   local acceptors = {}
   for i = 1, nacceptors do
-    storages[i] = mock_storage("storage-" .. tostring(i), true)
+    storages[i] = mock_storage("storage-" .. tostring(i), debug)
     local a = spawn(function(i)
                       local ok, err, state = p.accept(storages[i])
                       debug("accept...", i, ok, err)
