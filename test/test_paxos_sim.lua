@@ -53,9 +53,9 @@ end
 -- Simulate one round of paxos, sending messages based on the
 -- picker()'s decision.
 --
-function sim_one(nleaders, nacceptors, picker)
-  debug("---------------------")
-  debug("sim_one", nleaders, nacceptors)
+function sim_one(nleaders, nacceptors, picker, debug)
+  print("---------------------")
+  print("sim_one", nleaders, nacceptors)
 
   local msgs = {}
 
@@ -121,7 +121,11 @@ function fifo_picker(msgs)
   return m
 end
 
-assert(debug(sim_one(1, 1, fifo_picker)) == 1)
-assert(debug(sim_one(1, 2, fifo_picker)) == 1)
-assert(debug(sim_one(1, 3, fifo_picker)) == 1)
+function debug_off(...) return ... end
+
+assert(debug(sim_one(1, 1, fifo_picker, debug_off)) == 1)
+assert(debug(sim_one(1, 2, fifo_picker, debug_off)) == 1)
+assert(debug(sim_one(1, 3, fifo_picker, debug_off)) == 1)
+assert(debug(sim_one(1, 4, fifo_picker, debug_off)) == 1)
+assert(debug(sim_one(1, 5, fifo_picker, debug_off)) == 1)
 
