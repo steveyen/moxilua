@@ -211,10 +211,19 @@ assert(debug_off(sim_one(3, 5, random_picker, debug_off)) >= 1)
 
 math.randomseed(1)
 
+local non_consensus = 0
+
 for attempts = 1, 1000000 do
   if attempts % 1000 == 0 then
     print("==========================", attempts)
   end
 
-  sim_one(3, 5, random_picker, debug_off)
+  local nlearned = sim_one(3, 5, random_picker, debug_off)
+  if nlearned <= 0 then
+    non_consensus = non_consensus + 1
+    print("non-consensus", attempts)
+  end
 end
+
+print("non-consensus total", non_consensus)
+
