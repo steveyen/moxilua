@@ -50,6 +50,10 @@ function debug(...)
   return ...
 end
 
+function debug_off(...)
+  return ...
+end
+
 -- Simulate one round of paxos, sending messages based on the
 -- picker()'s decision.
 --
@@ -127,22 +131,45 @@ function fifo_picker(msgs)
   return m
 end
 
-function debug_off(...) return ... end
+assert(debug(sim_one(1, 1, fifo_picker, debug_off)) >= 1)
+assert(debug(sim_one(1, 2, fifo_picker, debug_off)) >= 1)
+assert(debug(sim_one(1, 3, fifo_picker, debug_off)) >= 1)
+assert(debug(sim_one(1, 4, fifo_picker, debug_off)) >= 1)
+assert(debug(sim_one(1, 5, fifo_picker, debug_off)) >= 1)
 
-assert(debug(sim_one(1, 1, fifo_picker, debug_off)) == 1)
-assert(debug(sim_one(1, 2, fifo_picker, debug_off)) == 1)
-assert(debug(sim_one(1, 3, fifo_picker, debug_off)) == 1)
-assert(debug(sim_one(1, 4, fifo_picker, debug_off)) == 1)
-assert(debug(sim_one(1, 5, fifo_picker, debug_off)) == 1)
+assert(debug(sim_one(2, 1, fifo_picker, debug_off)) >= 1)
+assert(debug(sim_one(2, 2, fifo_picker, debug_off)) >= 1)
+assert(debug(sim_one(2, 3, fifo_picker, debug_off)) >= 1)
+assert(debug(sim_one(2, 4, fifo_picker, debug_off)) >= 1)
+assert(debug(sim_one(2, 5, fifo_picker, debug_off)) >= 1)
 
-assert(debug(sim_one(2, 1, fifo_picker, debug_off)) == 1)
-assert(debug(sim_one(2, 2, fifo_picker, debug_off)) == 1)
-assert(debug(sim_one(2, 3, fifo_picker, debug_off)) == 1)
-assert(debug(sim_one(2, 4, fifo_picker, debug_off)) == 1)
-assert(debug(sim_one(2, 5, fifo_picker, debug_off)) == 1)
+assert(debug(sim_one(3, 1, fifo_picker, debug_off)) >= 1)
+assert(debug(sim_one(3, 2, fifo_picker, debug_off)) >= 1)
+assert(debug(sim_one(3, 3, fifo_picker, debug_off)) >= 1)
+assert(debug(sim_one(3, 4, fifo_picker, debug_off)) >= 1)
+assert(debug(sim_one(3, 5, fifo_picker, debug_off)) >= 1)
 
-assert(debug(sim_one(3, 1, fifo_picker, debug_off)) == 1)
-assert(debug(sim_one(3, 2, fifo_picker, debug_off)) == 1)
-assert(debug(sim_one(3, 3, fifo_picker, debug_off)) == 1)
-assert(debug(sim_one(3, 4, fifo_picker, debug_off)) == 1)
-assert(debug(sim_one(3, 5, fifo_picker, debug_off)) == 1)
+function lifo_picker(msgs)
+  local m = msgs[#msgs]
+  msgs[#msgs] = nil
+  return m
+end
+
+assert(debug(sim_one(1, 1, lifo_picker, debug_off)) >= 1)
+assert(debug(sim_one(1, 2, lifo_picker, debug_off)) >= 1)
+assert(debug(sim_one(1, 3, lifo_picker, debug_off)) >= 1)
+assert(debug(sim_one(1, 4, lifo_picker, debug_off)) >= 1)
+assert(debug(sim_one(1, 5, lifo_picker, debug_off)) >= 1)
+
+assert(debug(sim_one(2, 1, lifo_picker, debug_off)) >= 1)
+assert(debug(sim_one(2, 2, lifo_picker, debug_off)) >= 1)
+assert(debug(sim_one(2, 3, lifo_picker, debug_off)) >= 1)
+assert(debug(sim_one(2, 4, lifo_picker, debug_off)) >= 1)
+assert(debug(sim_one(2, 5, lifo_picker, debug_off)) >= 1)
+
+assert(debug(sim_one(3, 1, lifo_picker, debug_off)) >= 1)
+assert(debug(sim_one(3, 2, lifo_picker, debug_off)) >= 1)
+assert(debug(sim_one(3, 3, lifo_picker, debug_off)) >= 1)
+assert(debug(sim_one(3, 4, lifo_picker, debug_off)) >= 1)
+assert(debug(sim_one(3, 5, lifo_picker, debug_off)) >= 1)
+
