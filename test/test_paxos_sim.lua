@@ -218,7 +218,14 @@ for attempts = 1, 1000000 do
     print("==========================", attempts)
   end
 
-  local nlearned = sim_one(3, 5, random_picker, debug_off)
+  local d = debug_off
+  if attempts == 1222 or
+     attempts == 12472 or
+     attempts == 124972 then -- Known non-consensus results from
+    d = debug                -- previous runs will have verbose output.
+  end
+
+  local nlearned = sim_one(3, 5, random_picker, d)
   if nlearned <= 0 then
     non_consensus = non_consensus + 1
     print("non-consensus", attempts)
