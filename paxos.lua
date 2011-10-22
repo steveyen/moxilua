@@ -43,7 +43,7 @@ local tot_propose_vote        = 0
 local tot_propose_vote_repeat = 0
 
 local quorum = opts.quorum or function(n)
-                                return mfloor(n / 2) + 1
+                                return mfloor(n / 2) + 1 -- Majority.
                               end
 
 function arr_member(arr, item)
@@ -156,10 +156,10 @@ function propose(seq, acceptors, val)
       send(acceptor_addr, req)
     end
 
-    local needed = quorum(#acceptors)
+    local needs = quorum(#acceptors)
     local tally = {}
-    tally[yea_vote_kind] = { {}, needed, true, nil }
-    tally[RES_NACK]      = { {}, #acceptors - needed + 1, false, "rejected" }
+    tally[yea_vote_kind] = { {}, needs, true, nil }
+    tally[RES_NACK]      = { {}, #acceptors - needs + 1, false, "rejected" }
 
     while true do
       local src, res = recv(nil, proposer_timeout)
