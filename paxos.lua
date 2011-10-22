@@ -18,12 +18,12 @@ local RES_ACCEPTED = 21
 
 local SEQ_NUM = 1
 local SEQ_SRC = 2
-local SEQ_KEY = 3 -- App-specific key info like a slot id or storage key.
+local SEQ_KEY = 3 -- App-specific info, like a slot id or storage key.
 
-local acceptor_timeout = opts.acceptor_timeout or 3
+local acceptor_timeout = opts.acceptor_timeout or 3 -- In seconds.
 local proposer_timeout = opts.proposer_timeout or 3
 
-local tot_accept_loop         = 0
+local tot_accept_loop         = 0 -- Stats counters.
 local tot_accept_bad_req      = 0
 local tot_accept_bad_req_kind = 0
 local tot_accept_recv         = 0
@@ -169,6 +169,8 @@ function propose(seq, acceptors, val)
         return false, src
       end
 
+      -- Stop when recv()'ed votes reach tally quorum, either yea or nay.
+      --
       if arr_member(acceptors, src) and
          res and res.req and res.req.seq and
          res.req.seq[SEQ_NUM] == seq[SEQ_NUM] and
