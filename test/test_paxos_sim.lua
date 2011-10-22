@@ -1,6 +1,7 @@
-ambox = require('ambox')
-spawn = ambox.spawn
-paxos = require('paxos')
+local ambox = require('ambox')
+local spawn = ambox.spawn
+local cycle = ambox.cycle
+local paxos = require('paxos')
 
 function debug(...)
   print(...)
@@ -72,7 +73,7 @@ function sim_one(nleaders, nacceptors, picker, debug)
            end
   }
 
-  local p = paxos_module(mock_ambox, { log = debug })
+  local p = paxos_module({ ambox = mock_ambox, log = debug })
 
   local storages = {}
   local acceptors = {}

@@ -1,10 +1,10 @@
-function paxos_module(ambox, opts)
+function paxos_module(opts)
 
-ambox = ambox or require('ambox')
-opts  = opts  or {}
+opts = opts or {}
 
 local tinsert = table.insert
 local mfloor = math.floor
+local ambox = opts.ambox or require('ambox')
 local self = ambox.self_addr
 local send = ambox.send
 local recv = ambox.recv
