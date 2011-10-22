@@ -224,6 +224,7 @@ for attempts = 1, 1000000 do
      attempts == 12472 or
      attempts == 124972 then -- Known non-consensus results from
     d = debug                -- previous runs will have verbose output.
+    print("non-consensus expected:", attempts)
   end
 
   local nlearned = sim_one(3, 5, random_picker, d)
