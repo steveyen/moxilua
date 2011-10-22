@@ -5,7 +5,6 @@ opts  = opts  or {}
 
 local tinsert = table.insert
 local mfloor = math.floor
-
 local self = ambox.self_addr
 local send = ambox.send
 local recv = ambox.recv
@@ -71,8 +70,8 @@ function accept(storage, initial_state)
   function respond(to, kind, msg)
     msg = msg or {}
     msg.kind = kind
-    msg.accepted_seq = accepted_seq
-    msg.accepted_val = accepted_val
+    msg.accepted_seq = accepted_seq -- Allow requestor to catch up to
+    msg.accepted_val = accepted_val -- our currently accepted seq+val.
     send(to, self(), msg)
     tot_accept_send = tot_accept_send + 1
   end
@@ -89,7 +88,8 @@ function accept(storage, initial_state)
     end
     tot_accept_nack_behind = tot_accept_nack_behind + 1
     return false, RES_NACK, { req = req,
-                              err = "req seq was behind" }
+                              err = "req seq was behind",
+                              proposal_seq = proposal_seq }
   end
 
   while true do
@@ -102,6 +102,9 @@ function accept(storage, initial_state)
     end
 
     if req and req.seq and req.seq[SEQ_SRC] then
+      -- The acceptor's main responsibility is to
+      -- process incoming prepare or accept requests.
+      --
       if req.kind == REQ_PREPARE then
         tot_accept_prepare = tot_accept_prepare + 1
         ok, res_kind, res = process(req, RES_PREPARED, storage.save_seq)
@@ -110,6 +113,10 @@ function accept(storage, initial_state)
           proposal_seq = req.seq
         end
         respond(req.seq[SEQ_SRC], res_kind, res)
+
+      -- Both prepare and accept request handling are
+      -- similar, sharing the same process() helper function.
+      --
       elseif req.kind == REQ_ACCEPT then
         tot_accept_accept = tot_accept_accept + 1
         ok, res_kind, res = process(req, RES_ACCEPTED, storage.save_seq_val)
@@ -120,6 +127,7 @@ function accept(storage, initial_state)
           accepted_val = req.val
         end
         respond(req.seq[SEQ_SRC], res_kind, res)
+
       else
         tot_accept_bad_req_kind = tot_accept_bad_req_kind + 1
         log("paxos.accept", "unknown req.kind", req.kind)
@@ -170,7 +178,8 @@ function propose(seq, acceptors, val)
           tinsert(votes, src)
           if #votes >= vkind[2] then
             return vkind[3], vkind[4], { seq = res.accepted_seq,
-                                         val = res.accepted_val }
+                                         val = res.accepted_val,
+                                         proposal_seq = res.proposal_seq }
           end
         else
           tot_propose_vote_repeat = tot_propose_vote_repeat + 1
@@ -185,6 +194,9 @@ function propose(seq, acceptors, val)
     end
   end
 
+  -- The proposer has two phases: prepare & accept, which
+  -- are similar and can share the same phase() logic.
+  --
   local ok, err, res = phase({ kind = REQ_PREPARE,
                                seq = seq }, RES_PREPARED)
   if not ok then return ok, err, res end
