@@ -71,11 +71,10 @@ function accept(storage, initial_state)
   local accepted_val = initial_state.accepted_val
   local proposal_seq = accepted_seq
 
-  function respond(to, kind, msg)
-    msg = msg or {}
-    msg.kind = kind
+  function respond(to, msg)
     msg.accepted_seq = accepted_seq -- Allow requestor to catch up to
     msg.accepted_val = accepted_val -- our currently accepted seq+val.
+    msg.proposal_seq = proposal_seq
     send(to, self(), msg)
     tot_accept_send = tot_accept_send + 1
   end
@@ -84,16 +83,18 @@ function accept(storage, initial_state)
     if seq_gte(req.seq, proposal_seq) then
       local ok, err = storage_fun(req.seq, req.val)
       if ok then
-        return true, kind, { req = { kind = req.kind, seq = req.seq } }
+        return true, { kind = kind,
+                       req = { kind = req.kind, seq = req.seq } }
       end
       tot_accept_nack_storage = tot_accept_nack_storage + 1
-      return false, RES_NACK, { req = req,
-                                err = { "storage error", err } }
+      return false, { kind = RES_NACK,
+                      req = req,
+                      err = { "storage error", err } }
     end
     tot_accept_nack_behind = tot_accept_nack_behind + 1
-    return false, RES_NACK, { req = req,
-                              err = "req seq was behind",
-                              proposal_seq = proposal_seq }
+    return false, { kind = RES_NACK,
+                    req = req,
+                    err = "req seq was behind" }
   end
 
   while true do
@@ -111,26 +112,26 @@ function accept(storage, initial_state)
       --
       if req.kind == REQ_PREPARE then
         tot_accept_prepare = tot_accept_prepare + 1
-        ok, res_kind, res = process(req, RES_PREPARED, storage.save_seq)
+        local ok, res = process(req, RES_PREPARED, storage.save_seq)
         if ok then
           tot_accept_prepared = tot_accept_prepared + 1
           proposal_seq = req.seq
         end
-        respond(req.seq[SEQ_SRC], res_kind, res)
+        respond(req.seq[SEQ_SRC], res)
 
       -- Both prepare and accept request handling are
       -- similar, sharing the same process() helper function.
       --
       elseif req.kind == REQ_ACCEPT then
         tot_accept_accept = tot_accept_accept + 1
-        ok, res_kind, res = process(req, RES_ACCEPTED, storage.save_seq_val)
+        local ok, res = process(req, RES_ACCEPTED, storage.save_seq_val)
         if ok then
           tot_accept_accepted = tot_accept_accepted + 1
           proposal_seq = req.seq
           accepted_seq = req.seq
           accepted_val = req.val
         end
-        respond(req.seq[SEQ_SRC], res_kind, res)
+        respond(req.seq[SEQ_SRC], res)
 
       else
         tot_accept_bad_req_kind = tot_accept_bad_req_kind + 1
