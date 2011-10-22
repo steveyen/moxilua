@@ -58,8 +58,8 @@ end
 function seq_gte(a, b) -- Returns true if seq a >= seq b.
   a = a or { 0, -1 }   -- A seq is { num, src }.
   b = b or { 0, -1 }
-  a1 = a[SEQ_NUM] or 0
-  b1 = b[SEQ_NUM] or 0
+  local a1 = a[SEQ_NUM] or 0
+  local b1 = b[SEQ_NUM] or 0
   return a[SEQ_KEY] == b[SEQ_KEY] and
          ((a1 > b1) or (a1 == b1 and (a[SEQ_SRC] or -1) >= (b[SEQ_SRC] or -1)))
 end
